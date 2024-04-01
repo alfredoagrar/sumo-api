@@ -16,3 +16,9 @@ export const summarizationTextBasic = async (req: Request, res: Response): Promi
     const summary = await service.summarizeTextBasic(text);
     res.send(summary);
 }
+
+export const conclusionTextBasic = async (req: Request, res: Response): Promise<void> => {
+    const text: any = req.body.text;
+    const summary = await service.conclusionTextBasic(text);
+    res.send(summary);
+}

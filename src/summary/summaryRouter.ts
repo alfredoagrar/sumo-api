@@ -23,5 +23,6 @@ import * as summaryController from './controllers/summaryController';
 const router = Router();
 
 router.post('/basic', summaryController.summarizationTextBasic);
+router.post('/conclude', summaryController.conclusionTextBasic);
 
 export default router;

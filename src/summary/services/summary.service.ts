@@ -17,4 +17,14 @@ export class SummaryService {
         let summary = await this.openai.executePrompt(this.prompts.getBasicSummarizationPrompt(text));
         return summary as string;
     }
+
+    /**
+     * Generates a basic conclusion text based on the given input text.
+     * @param text - The input text to generate the conclusion from.
+     * @returns A Promise that resolves to the generated conclusion text.
+     */
+    async conclusionTextBasic(text: string): Promise<string> {
+        let summary = await this.openai.executePrompt(this.prompts.getConclusionPrompt(text));
+        return summary as string;
+    }
 }
