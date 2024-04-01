@@ -24,5 +24,7 @@ const router = Router();
 
 router.post('/basic', summaryController.summarizationTextBasic);
 router.post('/conclude', summaryController.conclusionTextBasic);
+router.post('/bullet-points', summaryController.bulletPointsTextBasic);
+router.post('/infer', summaryController.inferringTextBasic);
 
 export default router;
