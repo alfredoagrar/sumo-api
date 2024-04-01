@@ -1,0 +1,31 @@
+/**
+ * TypeScript compiler options.
+ */
+{
+    "compilerOptions": {
+        /**
+         * Ensures consistent casing of file names.
+         */
+        "forceConsistentCasingInFileNames": true,
+        /**
+         * Specifies the ECMAScript target version.
+         */
+        "target": "es6",
+        /**
+         * Specifies the module system for the generated code.
+         */
+        "module": "commonjs",
+        /**
+         * Specifies the output directory for compiled files.
+         */
+        "outDir": "./dist",
+        /**
+         * Enables strict type checking.
+         */
+        "strict": true,
+        /**
+         * Enables interoperability between CommonJS and ES Modules.
+         */
+        "esModuleInterop": true
+    }
+}
