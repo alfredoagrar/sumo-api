@@ -1,0 +1,85 @@
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+.prompt {
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 58px;
+  padding: 0 16px;
+  border-radius: 18px;
+  background: rgba(17, 20, 28, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  backdrop-filter: blur(18px);
+}
+
+.logo {
+  flex: none;
+  filter: drop-shadow(0 2px 6px rgba(79, 70, 229, 0.55));
+}
+
+input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #f5f7fb;
+  font: inherit;
+  font-size: 17px;
+}
+
+input::placeholder {
+  color: rgba(245, 247, 251, 0.45);
+}
+
+.chip {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #cfe0ff;
+  background: rgba(90, 169, 255, 0.14);
+  border: 1px solid rgba(90, 169, 255, 0.3);
+}
+
+.hint {
+  display: inline-block;
+  margin: 8px 4px 0;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: rgba(245, 247, 251, 0.8);
+  background: rgba(17, 20, 28, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+kbd {
+  font: inherit;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}

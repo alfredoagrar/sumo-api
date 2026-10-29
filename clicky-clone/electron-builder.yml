@@ -1,0 +1,33 @@
+appId: com.buddy.clickyclone
+productName: Buddy
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**
+  - package.json
+extraResources:
+  - from: resources
+    to: .
+    filter:
+      - tray*.png
+mac:
+  category: public.app-category.productivity
+  icon: resources/icon.png
+  target:
+    - dmg
+    - zip
+  extendInfo:
+    LSUIElement: true
+    NSMicrophoneUsageDescription: Buddy te escucha cuando pulsas el atajo de voz. El audio se transcribe en tu equipo.
+    NSAppleEventsUsageDescription: Buddy abre la Terminal para que inicies sesión en Claude Code o Codex.
+win:
+  icon: resources/icon.png
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  icon: resources/icon.png
+  category: Utility
+  target: AppImage
