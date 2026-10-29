@@ -8,7 +8,7 @@ export interface Vec {
 export type MotionMode = 'follow' | 'flying' | 'pointing' | 'returning'
 
 /** Separación del buddy respecto a la punta del cursor. */
-export const FOLLOW_OFFSET: Vec = { x: 16, y: 18 }
+export const FOLLOW_OFFSET: Vec = { x: 12, y: 14 }
 
 /** La flecha del buddy apunta hacia arriba a la izquierda (-135°). */
 const NATIVE_ANGLE = -135

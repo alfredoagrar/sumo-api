@@ -2,7 +2,16 @@ import { app, ipcMain, Notification, session, shell, systemPreferences, type Ipc
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { IPC } from '../shared/ipc'
-import type { DeepPartial, HotkeyStatus, PermissionStatus, ProviderId, Settings, SttStatus } from '../shared/types'
+import type {
+  AgentTask,
+  BuddyCommand,
+  DeepPartial,
+  HotkeyStatus,
+  PermissionStatus,
+  ProviderId,
+  Settings,
+  SttStatus
+} from '../shared/types'
 import { AgentManager } from './agents'
 import { Assistant } from './assistant'
 import { screenPermission } from './capture'
@@ -127,7 +136,16 @@ async function main(): Promise<void> {
 
   assistant.on('history', (h) => panel.send(IPC.historyChanged, h))
   assistant.on('stt', (status) => panel.send(IPC.sttStatusChanged, status))
-  agents.on('change', (tasks) => panel.send(IPC.agentsChanged, tasks))
+  // El buddy muestra un punto discreto mientras haya agentes trabajando.
+  let runningAgents = 0
+  agents.on('change', (tasks: AgentTask[]) => {
+    panel.send(IPC.agentsChanged, tasks)
+    const running = tasks.filter((t) => t.status === 'running').length
+    if (running !== runningAgents) {
+      runningAgents = running
+      overlays.broadcast(IPC.buddy, { type: 'agents', running } satisfies BuddyCommand)
+    }
+  })
   agents.on('finished', (task) => {
     const s = settings.get()
     const es = s.language === 'es'

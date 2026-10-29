@@ -29,8 +29,9 @@ const CAPTION_LINGER_MS = 1400
 
 export function Overlay() {
   const buddyRef = useRef<HTMLDivElement>(null)
-  const bubbleRef = useRef<HTMLDivElement>(null)
+  const hintRef = useRef<HTMLDivElement>(null)
   const labelRef = useRef<HTMLDivElement>(null)
+  const edgeRef = useRef<HTMLDivElement>(null)
 
   const cursor = useRef<Vec>({ x: -200, y: -200 })
   const pos = useRef<Vec>({ x: -200, y: -200 })
@@ -49,6 +50,7 @@ export function Overlay() {
   const [text, setText] = useState<string | undefined>()
   const [label, setLabel] = useState<string | null>(null)
   const [pointing, setPointing] = useState(false)
+  const [agents, setAgents] = useState(0)
   const [settings, setSettings] = useState<Settings | null>(null)
   const [platform, setPlatform] = useState('darwin')
 
@@ -131,6 +133,9 @@ export function Overlay() {
         case 'level':
           level.current = cmd.value
           break
+        case 'agents':
+          setAgents(cmd.running)
+          break
         case 'stop':
           if (lingerTimer.current !== null) window.clearTimeout(lingerTimer.current)
           lingerTimer.current = null
@@ -140,7 +145,7 @@ export function Overlay() {
           goHome()
           break
         case 'hide-for-capture':
-          // Ocultamos todo y esperamos dos frames para que no salga en la captura.
+          // Ocultamos todo (también el brillo del borde) y esperamos dos frames para que no salga en la captura.
           document.body.style.opacity = '0'
           requestAnimationFrame(() => requestAnimationFrame(() => api.sendCaptureReady()))
           break
@@ -151,7 +156,7 @@ export function Overlay() {
     })
   }, [])
 
-  // Bucle de animación: posición, rotación y colocación de los globos.
+  // Bucle de animación: posición, rotación y colocación del hint.
   useEffect(() => {
     let raf = 0
     let last = performance.now()
@@ -180,37 +185,38 @@ export function Overlay() {
         }
       } else if (mode.current === 'pointing' && target.current) {
         // Pequeño "toque" sobre el objetivo.
-        const bob = Math.sin(now / 260) * 2.2
+        const bob = Math.sin(now / 260) * 1.6
         pos.current = { x: target.current.x - bob * 0.7, y: target.current.y - bob * 0.7 }
         angle.current = lerpAngle(angle.current, 0, 1 - Math.exp(-dt * 10))
       }
 
+      const lv = level.current
       const buddy = buddyRef.current
       if (buddy) {
-        const lv = level.current
         buddy.style.transform = `translate3d(${pos.current.x}px, ${pos.current.y}px, 0) rotate(${angle.current}deg)`
         buddy.style.setProperty('--level', String(lv))
       }
+      edgeRef.current?.style.setProperty('--level', String(lv))
 
       const vw = window.innerWidth
       const vh = window.innerHeight
-      const bubble = bubbleRef.current
-      if (bubble) {
-        const w = bubble.offsetWidth
-        const h = bubble.offsetHeight
-        let x = pos.current.x + 30
-        let y = pos.current.y + 26
-        if (x + w > vw - 12) x = pos.current.x - w - 18
-        if (y + h > vh - 12) y = pos.current.y - h - 14
-        bubble.style.transform = `translate3d(${Math.max(12, x)}px, ${Math.max(12, y)}px, 0)`
+      const hint = hintRef.current
+      if (hint) {
+        const w = hint.offsetWidth
+        const h = hint.offsetHeight
+        let x = pos.current.x + 18
+        let y = pos.current.y + 16
+        if (x + w > vw - 10) x = pos.current.x - w - 10
+        if (y + h > vh - 10) y = pos.current.y - h - 8
+        hint.style.transform = `translate3d(${Math.max(10, x)}px, ${Math.max(10, y)}px, 0)`
       }
       const lbl = labelRef.current
       if (lbl && target.current) {
         const w = lbl.offsetWidth
-        let x = target.current.x + 22
-        const y = target.current.y - 38
-        if (x + w > vw - 12) x = target.current.x - w - 22
-        lbl.style.transform = `translate3d(${Math.max(12, x)}px, ${Math.max(12, y)}px, 0)`
+        let x = target.current.x + 14
+        const y = target.current.y - 26
+        if (x + w > vw - 10) x = target.current.x - w - 14
+        lbl.style.transform = `translate3d(${Math.max(10, x)}px, ${Math.max(10, y)}px, 0)`
       }
       raf = requestAnimationFrame(tick)
     }
@@ -222,66 +228,58 @@ export function Overlay() {
   const talkKey = settings ? prettyAccelerator(settings.hotkeys.talk, platform) : ''
   const visible = active || pointing
 
-  let bubbleText: string | undefined
-  let bubbleKind: 'listening' | 'thinking' | 'speaking' | 'error' | null = null
-  if (state === 'listening') {
-    bubbleKind = 'listening'
-    bubbleText = es ? `Te escucho… (${talkKey} para terminar)` : `Listening… (${talkKey} to finish)`
-  } else if (state === 'transcribing') {
-    bubbleKind = 'thinking'
-    bubbleText = text ?? (es ? 'Transcribiendo…' : 'Transcribing…')
-  } else if (state === 'thinking') {
-    bubbleKind = 'thinking'
-    bubbleText = text ? `“${text}”` : es ? 'Pensando…' : 'Thinking…'
-  } else if (state === 'speaking' && text && settings?.showCaptions !== false) {
-    bubbleKind = 'speaking'
-    bubbleText = text
-  } else if (state === 'error' && text) {
-    bubbleKind = 'error'
-    bubbleText = text
-  }
+  // Hint compacto junto al buddy.
+  let hint: { kind: 'listening' | 'working' | 'speaking' | 'error'; text: string } | null = null
+  if (state === 'listening') hint = { kind: 'listening', text: es ? 'Escuchando' : 'Listening' }
+  else if (state === 'transcribing') hint = { kind: 'working', text: text ?? (es ? 'Transcribiendo…' : 'Transcribing…') }
+  else if (state === 'thinking') hint = { kind: 'working', text: text ?? (es ? 'Pensando…' : 'Thinking…') }
+  else if (state === 'speaking' && text && settings?.showCaptions !== false) hint = { kind: 'speaking', text }
+  else if (state === 'error' && text) hint = { kind: 'error', text }
+
+  // Brillo en el borde: mientras escucha (sigue la voz) y mientras trabaja o habla.
+  const glowOn = settings?.screenGlow !== false
+  const edge =
+    !glowOn ? 'off' : state === 'listening' ? 'listening' : state === 'transcribing' || state === 'thinking' || state === 'speaking' || pointing ? 'working' : 'off'
 
   return (
-    <div className={`stage ${visible ? 'is-visible' : ''}`}>
-      <div ref={buddyRef} className={`buddy state-${state}`}>
-        <div className="buddy-ring" />
-        <svg className="buddy-arrow" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-          <defs>
-            <linearGradient id="buddy-fill" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#5AA9FF" />
-              <stop offset="100%" stopColor="#4F46E5" />
-            </linearGradient>
-          </defs>
-          <path d="M3 3 L25 11 L14.5 14.5 L11 25 Z" fill="url(#buddy-fill)" stroke="white" strokeWidth="2" strokeLinejoin="round" />
-        </svg>
-        {(state === 'thinking' || state === 'transcribing') && (
-          <div className="buddy-dots">
-            <span />
-            <span />
-            <span />
+    <>
+      <div ref={edgeRef} className={`edge edge-${edge}`} aria-hidden="true" />
+      <div className={`stage ${visible ? 'is-visible' : ''}`}>
+        <div ref={buddyRef} className={`buddy state-${state}`}>
+          <div className="buddy-ring" />
+          <svg className="buddy-arrow" width="18" height="18" viewBox="0 0 30 30" aria-hidden="true">
+            <path d="M3 3 L25 11 L14.5 14.5 L11 25 Z" strokeWidth="2.6" strokeLinejoin="round" />
+          </svg>
+          {agents > 0 && <span className="agents-dot" title={es ? `${agents} agente(s) trabajando` : `${agents} agent(s) working`} />}
+        </div>
+
+        {hint && (
+          <div ref={hintRef} className={`hint hint-${hint.kind}`}>
+            {hint.kind === 'listening' && (
+              <span className="meter" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+            )}
+            {hint.kind === 'working' && (
+              <span className="dots" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+            )}
+            <span className="hint-text">{hint.text}</span>
+            {hint.kind === 'listening' && talkKey && <kbd>{talkKey}</kbd>}
+          </div>
+        )}
+
+        {pointing && label && (
+          <div ref={labelRef} className="target-label">
+            {label}
           </div>
         )}
       </div>
-
-      {bubbleKind && bubbleText && (
-        <div ref={bubbleRef} className={`bubble bubble-${bubbleKind}`}>
-          {bubbleKind === 'listening' && (
-            <span className="meter" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-              <i />
-            </span>
-          )}
-          <span className="bubble-text">{bubbleText}</span>
-        </div>
-      )}
-
-      {pointing && label && (
-        <div ref={labelRef} className="target-label">
-          {label}
-        </div>
-      )}
-    </div>
+    </>
   )
 }

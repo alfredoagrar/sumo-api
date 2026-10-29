@@ -147,6 +147,12 @@ export function SettingsPage({ data }: { data: AppData }) {
           />
         </Field>
         <Toggle label="Mostrar subtítulos junto al cursor" checked={s.showCaptions} onChange={(v) => set({ showCaptions: v })} />
+        <Toggle
+          label="Brillo en el borde de la pantalla"
+          hint="Indica que Buddy está escuchando o trabajando, para que no lo interrumpas."
+          checked={s.screenGlow}
+          onChange={(v) => set({ screenGlow: v })}
+        />
       </Card>
 
       <Card title="Dictado" subtitle="Tu voz se transcribe en tu equipo con Whisper: el audio no sale de tu computadora.">

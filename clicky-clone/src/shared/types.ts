@@ -49,6 +49,8 @@ export interface Settings {
   }
   /** Mostrar el texto de la respuesta junto al cursor. */
   showCaptions: boolean
+  /** Brillo en el borde de la pantalla mientras Buddy escucha o trabaja. */
+  screenGlow: boolean
   launchAtLogin: boolean
   onboarded: boolean
 }
@@ -77,6 +79,7 @@ export type BuddyCommand =
   | { type: 'state'; state: BuddyState; text?: string }
   | { type: 'point'; x: number; y: number; label: string }
   | { type: 'level'; value: number }
+  | { type: 'agents'; running: number }
   | { type: 'stop' }
   | { type: 'hide-for-capture' }
   | { type: 'show-after-capture' }

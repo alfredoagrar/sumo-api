@@ -9,19 +9,20 @@ Está hecho con **React + Electron** (TypeScript, Vite) y **no usa API keys de p
 | **Claude** | La CLI oficial **Claude Code** (`claude -p`), con la sesión que tú iniciaste | Pro, Max (y Team/Enterprise) |
 | **ChatGPT** | La CLI oficial **Codex** (`codex exec`) con "Sign in with ChatGPT" | Plus, Pro, Business, Enterprise |
 
-![Buddy señalando un elemento de la pantalla](docs/senalando.png)
+![Buddy señalando un elemento, con el brillo de borde activo mientras habla](docs/senalando.png)
 
 ## Funciones
 
 - **Pregunta con la voz.** Pulsa <kbd>⌘/Ctrl</kbd>+<kbd>⇧</kbd>+<kbd>Espacio</kbd>, habla y vuelve a pulsar, o simplemente quédate callado un momento. Tu voz se transcribe **en tu equipo** con Whisper (transformers.js con WebGPU o WASM).
 - **Ve tu pantalla y te señala.** Captura el monitor donde está el cursor, se la manda al modelo y este responde con lo que hay que decir y, si hace falta, las coordenadas del elemento. El buddy vuela en arco hasta el elemento y muestra una etiqueta.
 - **Responde en voz alta** con las voces del sistema y muestra subtítulos junto al cursor.
+- **Discreto.** El buddy es una flecha pequeña con un hint compacto al lado ("Escuchando", "Pensando…" o la respuesta). Mientras escucha o trabaja, un brillo suave en el borde de la pantalla avisa de que está ocupado, para que no lo interrumpas; se puede desactivar en Ajustes. Mientras haya agentes trabajando en segundo plano, el buddy muestra un punto verde.
 - **Barra para escribir.** Con <kbd>⌘/Ctrl</kbd>+<kbd>⇧</kbd>+<kbd>K</kbd> abres una barra flotante, como Spotlight, para escribir la pregunta.
 - **Agentes en segundo plano.** Si empiezas con "agente, …", la tarea se ejecuta en su propia carpeta (`~/Documents/Buddy/agentes/…`). Ves su progreso en el panel y Buddy te avisa en voz alta al terminar.
 - **Memoria corta.** Las últimas respuestas se usan como contexto durante 10 minutos.
 - **Panel** con el estado de tu suscripción, las comprobaciones de permisos, el historial, los agentes y los ajustes (modelo, voz, idioma, atajos).
 
-![Estados del buddy: escuchando, pensando, hablando y error](docs/estados.png)
+![Estados del buddy: escuchando, pensando, señalando y con un agente trabajando](docs/estados.png)
 
 ![Barra para escribir preguntas](docs/barra.png)
 

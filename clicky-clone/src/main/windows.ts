@@ -196,8 +196,8 @@ export class PanelWindow {
 /** Barra flotante para escribir una pregunta (como Spotlight). */
 export class PromptWindow {
   private win: BrowserWindow | null = null
-  private readonly width = 640
-  private readonly height = 132
+  private readonly width = 560
+  private readonly height = 100
 
   /** Se crea por adelantado (después de `app.whenReady`) para que aparezca al instante. */
   constructor() {

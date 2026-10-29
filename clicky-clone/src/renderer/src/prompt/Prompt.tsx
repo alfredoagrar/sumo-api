@@ -38,14 +38,8 @@ export function Prompt() {
   return (
     <div className="prompt">
       <div className="bar">
-        <svg className="logo" width="22" height="22" viewBox="0 0 30 30" aria-hidden="true">
-          <defs>
-            <linearGradient id="p-fill" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#5AA9FF" />
-              <stop offset="100%" stopColor="#4F46E5" />
-            </linearGradient>
-          </defs>
-          <path d="M3 3 L25 11 L14.5 14.5 L11 25 Z" fill="url(#p-fill)" stroke="white" strokeWidth="2" strokeLinejoin="round" />
+        <svg className="logo" width="15" height="15" viewBox="0 0 30 30" aria-hidden="true">
+          <path d="M3 3 L25 11 L14.5 14.5 L11 25 Z" fill="#4F8DFF" stroke="white" strokeWidth="2.6" strokeLinejoin="round" />
         </svg>
         <input
           ref={inputRef}
@@ -61,11 +55,11 @@ export function Prompt() {
       <div className="hint">
         {es ? (
           <>
-            <kbd>Enter</kbd> preguntar · <kbd>Esc</kbd> cerrar · empieza con <b>agente:</b> para una tarea en segundo plano
+            <kbd>↩</kbd> preguntar · <kbd>Esc</kbd> cerrar · <b>agente:</b> tarea en segundo plano
           </>
         ) : (
           <>
-            <kbd>Enter</kbd> ask · <kbd>Esc</kbd> close · start with <b>agent:</b> for a background task
+            <kbd>↩</kbd> ask · <kbd>Esc</kbd> close · <b>agent:</b> background task
           </>
         )}
       </div>

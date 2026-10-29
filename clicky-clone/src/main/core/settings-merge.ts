@@ -16,6 +16,7 @@ export function defaultSettings(workspaceDir: string): Settings {
     },
     agents: { workspaceDir, allowShell: false, announce: true },
     showCaptions: true,
+    screenGlow: true,
     launchAtLogin: false,
     onboarded: false
   }
