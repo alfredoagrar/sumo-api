@@ -130,6 +130,12 @@ export function Overlay() {
           setPointing(true)
           flyTo({ x: cmd.x, y: cmd.y })
           break
+        case 'label':
+          if (target.current) setLabel(cmd.label || null)
+          break
+        case 'unpoint':
+          goHome()
+          break
         case 'level':
           level.current = cmd.value
           break

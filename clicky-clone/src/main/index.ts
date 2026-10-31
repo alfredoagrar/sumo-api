@@ -7,6 +7,8 @@ import type {
   BuddyCommand,
   DeepPartial,
   HotkeyStatus,
+  JevStatus,
+  JevTestResult,
   PermissionStatus,
   ProviderId,
   Settings,
@@ -15,6 +17,8 @@ import type {
 import { AgentManager } from './agents'
 import { Assistant } from './assistant'
 import { screenPermission } from './capture'
+import { describeJevError, JevPointer } from './core/jev'
+import { Secrets } from './secrets'
 import { loadLoginShellPath } from './cli'
 import { registerHotkeys } from './hotkeys'
 import { APP_ORIGIN, handleAppProtocol, registerAppScheme } from './protocol'
@@ -82,7 +86,9 @@ async function main(): Promise<void> {
   const prompt = new PromptWindow()
   const voice = new VoiceWindow()
   const agents = new AgentManager(settings)
-  const assistant = new Assistant({ settings, overlays, prompt, voice, agents })
+  const secrets = new Secrets()
+  const jev = new JevPointer({ getApiKey: () => secrets.getJevKey() })
+  const assistant = new Assistant({ settings, overlays, prompt, voice, agents, jev })
 
   overlays.start()
 
@@ -207,6 +213,22 @@ async function main(): Promise<void> {
   on(IPC.promptClose, () => prompt.hide())
 
   handle(IPC.sttStatusGet, () => assistant.getSttStatus())
+
+  const jevStatus = (): JevStatus => ({ configured: jev.configured, fromEnv: secrets.jevFromEnv() })
+  handle(IPC.jevStatus, jevStatus)
+  handle(IPC.jevSetKey, (key: string) => {
+    secrets.setJevKey(String(key).slice(0, 500))
+    return jevStatus()
+  })
+  handle(IPC.jevTest, async (): Promise<JevTestResult> => {
+    const started = Date.now()
+    try {
+      const models = await jev.test()
+      return { ok: true, ms: Date.now() - started, text: models.length ? `Modelos disponibles: ${models.join(', ')}` : 'Conectado.' }
+    } catch (err) {
+      return { ok: false, ms: Date.now() - started, text: describeJevError(err) }
+    }
+  })
 
   on(IPC.captureReady, () => assistant.onCaptureReady())
   on(IPC.transcript, (text: string) => assistant.onTranscript(String(text)))

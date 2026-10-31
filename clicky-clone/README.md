@@ -70,10 +70,29 @@ Buddy **no** implementa su propio inicio de sesión, **no** lee, copia ni guarda
 
 > **Sobre los términos de uso.** Anthropic [permite](https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use) que cada persona use el binario oficial de Claude Code con su propia suscripción. En cambio, **no permite** que una app de terceros ofrezca el inicio de sesión de Claude.ai ni que canalice peticiones con credenciales de planes Free/Pro/Max **en nombre de sus usuarios**. Por eso Buddy está pensado para **uso personal**: cada persona lo ejecuta en su equipo con su propia sesión de la CLI. Si quieres distribuirlo como producto a otras personas, usa API keys (Claude Console u OpenAI Platform) y revisa los términos comerciales de cada proveedor. Los límites de uso de tu plan se aplican igual que si usaras la CLI directamente.
 
+## Experimento: señalar más rápido con Jev
+
+[Jev](https://typesafe.ai) es el modelo de TypeSafe AI. No genera texto: responde preguntas tipadas (sí/no, opciones, cajas sobre una imagen) en ~0.1–0.5 s. Buddy puede usarlo **solo para señalar**: lo que te dice sigue viniendo de Claude o ChatGPT.
+
+Cómo funciona cuando lo activas (Ajustes → "Señalar más rápido con Jev"):
+
+1. Con la captura lista, Buddy lanza **a la vez** la pregunta a Claude/ChatGPT y una petición a Jev (`jev-preview`) con dos preguntas: si hay algo que señalar (`noul`) y dónde está (`box`).
+2. Si Jev está seguro, el buddy vuela al elemento en cuanto Jev contesta, sin esperar a la respuesta hablada.
+3. Cuando llega la respuesta de Claude/ChatGPT, esta tiene la última palabra: si dice que no hace falta señalar, el buddy vuelve al cursor; si no, pone su etiqueta. Si Jev no estaba seguro, falló o no está configurado, se usa el punto del modelo principal, como siempre.
+4. En **Conversaciones** verás cuánto tardó Jev y a cuántos píxeles quedó del punto del modelo, para comparar.
+
+En pruebas con Electron, Claude real y un servidor que imita la API de Jev, el buddy señaló a los ~0.3 s, frente a los 3–4 s que tarda Claude en responder. La precisión real de Jev no se ha medido todavía: depende de su API, que no fue accesible desde el entorno de pruebas.
+
+Requisitos y avisos:
+
+- Necesita una API key de TypeSafe, que es **de pago por uso** y no tiene que ver con tu suscripción. Se guarda cifrada en tu equipo con el llavero del sistema; también puedes definir `TYPESAFE_API_KEY`.
+- La captura de pantalla se envía a TypeSafe (además de a Anthropic u OpenAI).
+- El soporte de imágenes de Jev es experimental en su API (cabecera `TypeSafe-Danger-Zone-Images`) y puede cambiar.
+
 ## Privacidad
 
 - **Audio.** Nunca sale de tu equipo: Whisper corre localmente. La primera vez se descarga el modelo (~80 MB) desde huggingface.co.
-- **Capturas.** Solo se toman cuando preguntas y se envían a Anthropic u OpenAI a través de su CLI, igual que cualquier imagen que les pases. Las últimas 6 capturas se guardan en la carpeta temporal del sistema.
+- **Capturas.** Solo se toman cuando preguntas y se envían a Anthropic u OpenAI a través de su CLI, igual que cualquier imagen que les pases (y a TypeSafe si activas Jev). Las últimas 6 capturas se guardan en la carpeta temporal del sistema.
 - **Historial y tareas.** Se guardan en la carpeta de datos de la app (la ruta aparece en Ajustes).
 
 ## Arquitectura

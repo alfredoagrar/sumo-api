@@ -32,6 +32,12 @@ export function Conversations({ data }: { data: AppData }) {
               <div className="turn-meta">
                 <Badge tone={t.provider === 'claude' ? 'info' : 'neutral'}>{t.provider === 'claude' ? 'Claude' : 'ChatGPT'}</Badge>
                 {t.pointed && <Badge tone="ok">Señaló: {t.pointed}</Badge>}
+                {t.jevMs !== undefined && (
+                  <Badge tone={t.pointSource === 'jev' ? 'info' : 'neutral'}>
+                    Jev {(t.jevMs / 1000).toFixed(2)} s{t.pointSource === 'jev' ? '' : ' · sin usar'}
+                  </Badge>
+                )}
+                {t.jevDeltaPx !== undefined && <Badge>{t.jevDeltaPx} px del punto del modelo</Badge>}
                 {t.error && <Badge tone="bad">Error</Badge>}
                 <span className="muted">{timeAgo(t.at)}</span>
                 {t.ms > 0 && <span className="muted">{(t.ms / 1000).toFixed(1)} s</span>}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { Settings } from '../../../../shared/types'
+import type { JevStatus, JevTestResult, Settings } from '../../../../shared/types'
+import { api } from '../../common/api'
 import type { AppData } from '../App'
 import { Card, Field, HotkeyInput, TextSetting, Toggle } from '../components'
 
@@ -25,6 +26,87 @@ function useVoices(): SpeechSynthesisVoice[] {
     return () => speechSynthesis.removeEventListener('voiceschanged', update)
   }, [])
   return voices
+}
+
+/** Experimento: señalar más rápido con Jev (TypeSafe AI). */
+function JevCard({ data }: { data: AppData }) {
+  const { settings: s, save } = data
+  const [status, setStatus] = useState<JevStatus | null>(null)
+  const [key, setKey] = useState('')
+  const [test, setTest] = useState<JevTestResult | 'running' | null>(null)
+  useEffect(() => void api.getJevStatus().then(setStatus), [])
+
+  const saveKey = async (): Promise<void> => {
+    setStatus(await api.setJevKey(key))
+    setKey('')
+    setTest(null)
+  }
+  const runTest = async (): Promise<void> => {
+    setTest('running')
+    setTest(await api.testJev())
+  }
+
+  return (
+    <Card
+      title="Señalar más rápido con Jev (experimental)"
+      subtitle="Jev, de TypeSafe AI, localiza el elemento de tu pantalla en paralelo y en menos de un segundo, así el buddy vuela antes. Lo que te dice Buddy sigue viniendo de Claude o ChatGPT, que además decide si hace falta señalar."
+    >
+      <Toggle
+        label="Usar Jev para señalar"
+        hint={status?.configured ? 'Si Jev no está seguro o falla, se usa el punto del modelo principal.' : 'Primero guarda tu API key de TypeSafe.'}
+        checked={s.pointer.engine === 'jev'}
+        onChange={(v) => void save({ pointer: { engine: v ? 'jev' : 'model' } })}
+      />
+      <Field
+        label="API key de TypeSafe"
+        hint={
+          status?.fromEnv
+            ? 'Se usa la variable de entorno TYPESAFE_API_KEY.'
+            : status?.configured
+              ? 'Guardada y cifrada en este equipo. Es de pago por uso (no es tu suscripción).'
+              : 'Consíguela en typesafe.ai. Es de pago por uso (no es tu suscripción).'
+        }
+      >
+        <div className="inline-controls">
+          <input
+            className="input mono"
+            type="password"
+            value={key}
+            placeholder={status?.configured ? '•••••••• (guardada)' : 'ts-…'}
+            onChange={(e) => setKey(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void saveKey()
+            }}
+          />
+          <button type="button" className="btn small" disabled={!key.trim()} onClick={() => void saveKey()}>
+            Guardar
+          </button>
+          {status?.configured && !status.fromEnv && (
+            <button type="button" className="btn small ghost" onClick={() => void api.setJevKey('').then(setStatus)}>
+              Borrar
+            </button>
+          )}
+        </div>
+      </Field>
+      <div className="row">
+        <span className="row-text">
+          <span>Conexión</span>
+          <small className="muted">En Conversaciones verás cuánto tardó Jev y a cuántos píxeles quedó del punto del modelo.</small>
+        </span>
+        <div className="row-control">
+          <button type="button" className="btn small ghost" disabled={!status?.configured || test === 'running'} onClick={() => void runTest()}>
+            Probar Jev
+          </button>
+          {test && test !== 'running' && (
+            <small className={test.ok ? 'muted' : 'bad-text'}>
+              {' '}
+              {test.text} ({(test.ms / 1000).toFixed(2)} s)
+            </small>
+          )}
+        </div>
+      </div>
+    </Card>
+  )
 }
 
 export function SettingsPage({ data }: { data: AppData }) {
@@ -112,6 +194,8 @@ export function SettingsPage({ data }: { data: AppData }) {
           </>
         )}
       </Card>
+
+      <JevCard data={data} />
 
       <Card title="Idioma y voz">
         <Field label="Idioma" hint="Idioma en el que hablas y en el que responde Buddy.">

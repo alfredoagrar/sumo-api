@@ -51,6 +51,14 @@ export interface Settings {
   showCaptions: boolean
   /** Brillo en el borde de la pantalla mientras Buddy escucha o trabaja. */
   screenGlow: boolean
+  pointer: {
+    /**
+     * Quién decide dónde señalar: el mismo modelo que responde, o Jev (TypeSafe AI),
+     * que localiza el elemento en paralelo y mucho más rápido. La respuesta hablada
+     * siempre viene del modelo principal.
+     */
+    engine: 'model' | 'jev'
+  }
   launchAtLogin: boolean
   onboarded: boolean
 }
@@ -80,6 +88,10 @@ export type BuddyCommand =
   | { type: 'point'; x: number; y: number; label: string }
   | { type: 'level'; value: number }
   | { type: 'agents'; running: number }
+  /** Pone o cambia la etiqueta del punto señalado (llega después de que Jev señale). */
+  | { type: 'label'; label: string }
+  /** Deja de señalar y vuelve al cursor (el modelo principal decidió que no hacía falta). */
+  | { type: 'unpoint' }
   | { type: 'stop' }
   | { type: 'hide-for-capture' }
   | { type: 'show-after-capture' }
@@ -112,6 +124,24 @@ export interface ChatTurn {
   ms: number
   pointed?: string
   error?: boolean
+  /** Quién puso el punto en pantalla. */
+  pointSource?: 'jev' | 'model'
+  /** Lo que tardó Jev en localizar el elemento. */
+  jevMs?: number
+  /** Distancia entre el punto de Jev y el del modelo principal (para comparar precisión). */
+  jevDeltaPx?: number
+}
+
+export interface JevStatus {
+  configured: boolean
+  /** La key viene de la variable de entorno TYPESAFE_API_KEY. */
+  fromEnv: boolean
+}
+
+export interface JevTestResult {
+  ok: boolean
+  ms: number
+  text: string
 }
 
 export type AgentEventKind = 'text' | 'tool' | 'error' | 'info'
@@ -186,6 +216,10 @@ export interface BuddyApi {
   askText(question: string): Promise<void>
   closePrompt(): void
   onPromptShow(cb: () => void): () => void
+
+  getJevStatus(): Promise<JevStatus>
+  setJevKey(key: string): Promise<JevStatus>
+  testJev(): Promise<JevTestResult>
 
   getSttStatus(): Promise<SttStatus>
   onSttStatus(cb: (s: SttStatus) => void): () => void
