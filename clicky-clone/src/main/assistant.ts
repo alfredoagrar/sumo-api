@@ -8,6 +8,7 @@ import type { BuddyCommand, ChatTurn, ProviderId, ProviderTestResult, SpeechComm
 import type { AgentManager } from './agents'
 import { captureDisplay, type Shot } from './capture'
 import { imagePointToScreen } from './core/answer'
+import { describeJevError, pointDistance, shouldPointEarly, type JevLocation, type JevPointer } from './core/jev'
 import { buildAnswerSystemPrompt, buildAnswerUserPrompt, parseAgentIntent } from './core/prompts'
 import { providers } from './providers'
 import { AbortedError } from './providers/types'
@@ -26,6 +27,7 @@ interface Deps {
   prompt: PromptWindow
   voice: VoiceWindow
   agents: AgentManager
+  jev: JevPointer
 }
 
 /**
@@ -218,6 +220,28 @@ export class Assistant extends EventEmitter {
     const controller = new AbortController()
     this.controller = controller
     const started = Date.now()
+
+    // Jev (opcional) localiza el elemento en paralelo mientras el modelo principal prepara la
+    // respuesta. Si está seguro, el buddy vuela en cuanto Jev contesta, sin esperar a Claude/ChatGPT.
+    let answered = false
+    let jevLoc: JevLocation | null = null
+    let jevPointed = false
+    if (shot && s.pointer.engine === 'jev' && this.deps.jev.configured) {
+      const snap = shot
+      this.deps.jev.locate(snap, text, controller.signal).then(
+        (loc) => {
+          if (answered || id !== this.interaction) return
+          jevLoc = loc
+          if (!shouldPointEarly(loc)) return
+          jevPointed = true
+          this.pointAt(snap, loc.point, '')
+        },
+        (err: unknown) => {
+          if (!controller.signal.aborted) console.warn('[jev] No se pudo localizar:', describeJevError(err))
+        }
+      )
+    }
+
     try {
       const answer = await providers[s.provider].ask(
         {
@@ -233,14 +257,34 @@ export class Assistant extends EventEmitter {
         s,
         controller.signal
       )
+      answered = true
       if (id !== this.interaction) return
       const say = answer.say || (this.es ? 'No estoy seguro de qué responder.' : "I'm not sure what to say.")
-      if (answer.point && shot) {
-        const onScreen = imagePointToScreen(answer.point, shot, shot.display.bounds)
-        const local = this.deps.overlays.toLocal(shot.display.id, onScreen)
-        this.buddy({ type: 'point', x: local.x, y: local.y, label: answer.point.label })
+      // TypeScript no ve las asignaciones hechas dentro del .then de arriba.
+      const loc = jevLoc as JevLocation | null
+      let pointSource: ChatTurn['pointSource']
+      if (jevPointed) {
+        // El modelo principal decide si hay que señalar: si dice que no, el buddy vuelve.
+        if (answer.point) {
+          pointSource = 'jev'
+          if (answer.point.label) this.buddy({ type: 'label', label: answer.point.label })
+        } else {
+          this.buddy({ type: 'unpoint' })
+        }
+      } else if (answer.point && shot) {
+        pointSource = 'model'
+        this.pointAt(shot, answer.point, answer.point.label)
       }
-      this.record({ question: text, answer: say, provider: s.provider, ms: Date.now() - started, pointed: answer.point?.label })
+      this.record({
+        question: text,
+        answer: say,
+        provider: s.provider,
+        ms: Date.now() - started,
+        pointed: answer.point?.label,
+        pointSource,
+        jevMs: loc?.ms,
+        jevDeltaPx: loc && answer.point ? pointDistance(loc.point, answer.point) : undefined
+      })
       this.speak(say)
     } catch (err) {
       if (id !== this.interaction || err instanceof AbortedError) return
@@ -262,6 +306,13 @@ export class Assistant extends EventEmitter {
     if (this.phase === 'speaking') this.speech({ type: 'stop' })
     if (this.phase !== 'idle') this.buddy({ type: 'stop' })
     this.phase = 'idle'
+  }
+
+  /** Manda al buddy a un punto de la captura (en píxeles de la imagen). */
+  private pointAt(shot: Shot, point: { x: number; y: number }, label: string): void {
+    const onScreen = imagePointToScreen(point, shot, shot.display.bounds)
+    const local = this.deps.overlays.toLocal(shot.display.id, onScreen)
+    this.buddy({ type: 'point', x: local.x, y: local.y, label })
   }
 
   private speak(text: string): void {

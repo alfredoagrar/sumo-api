@@ -251,5 +251,8 @@ describe('ajustes', () => {
     assert.equal(merged.claude.model, 'haiku')
     assert.ok(!('unknown' in merged))
     assert.equal(mergeSettings(base, null), base)
+    assert.equal(base.pointer.engine, 'model')
+    assert.equal(mergeSettings(base, { pointer: { engine: 'jev' } }).pointer.engine, 'jev')
+    assert.equal(mergeSettings(base, { pointer: { engine: 'magia' } }).pointer.engine, 'model')
   })
 })

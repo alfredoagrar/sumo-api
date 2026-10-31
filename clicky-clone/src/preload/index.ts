@@ -40,6 +40,10 @@ const api: BuddyApi = {
   closePrompt: () => ipcRenderer.send(IPC.promptClose),
   onPromptShow: (cb) => subscribe(IPC.promptShow, cb),
 
+  getJevStatus: () => ipcRenderer.invoke(IPC.jevStatus),
+  setJevKey: (key) => ipcRenderer.invoke(IPC.jevSetKey, key),
+  testJev: () => ipcRenderer.invoke(IPC.jevTest),
+
   getSttStatus: () => ipcRenderer.invoke(IPC.sttStatusGet),
   onSttStatus: (cb) => subscribe(IPC.sttStatusChanged, cb),
 

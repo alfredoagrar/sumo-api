@@ -30,6 +30,10 @@ export const IPC = {
   promptClose: 'prompt:close',
   promptShow: 'prompt:show',
 
+  jevStatus: 'jev:status',
+  jevSetKey: 'jev:set-key',
+  jevTest: 'jev:test',
+
   sttStatusGet: 'stt:status:get',
   sttStatusChanged: 'stt:status:changed',
 

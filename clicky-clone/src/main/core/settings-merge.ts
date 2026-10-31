@@ -17,6 +17,7 @@ export function defaultSettings(workspaceDir: string): Settings {
     agents: { workspaceDir, allowShell: false, announce: true },
     showCaptions: true,
     screenGlow: true,
+    pointer: { engine: 'model' },
     launchAtLogin: false,
     onboarded: false
   }
@@ -26,7 +27,8 @@ const ENUMS: Record<string, readonly string[]> = {
   provider: ['claude', 'codex'],
   language: ['es', 'en'],
   'codex.reasoningEffort': ['', 'minimal', 'low', 'medium', 'high'],
-  'stt.device': ['auto', 'webgpu', 'wasm']
+  'stt.device': ['auto', 'webgpu', 'wasm'],
+  'pointer.engine': ['model', 'jev']
 }
 
 const RANGES: Record<string, [number, number]> = {
