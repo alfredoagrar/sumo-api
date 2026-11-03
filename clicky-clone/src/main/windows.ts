@@ -161,6 +161,10 @@ export class PanelWindow {
     else this.show()
   }
 
+  hide(): void {
+    if (this.win && !this.win.isDestroyed() && this.win.isVisible()) this.win.hide()
+  }
+
   send(channel: string, payload: unknown): void {
     if (this.win && !this.win.isDestroyed()) this.win.webContents.send(channel, payload)
   }

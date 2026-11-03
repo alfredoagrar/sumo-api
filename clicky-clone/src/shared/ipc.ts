@@ -37,6 +37,21 @@ export const IPC = {
   sttStatusGet: 'stt:status:get',
   sttStatusChanged: 'stt:status:changed',
 
+  appleStatus: 'apple:status',
+  appleStatusChanged: 'apple:status:changed',
+  appleAccessibility: 'apple:accessibility',
+
+  routinesList: 'routines:list',
+  routinesChanged: 'routines:changed',
+  routinesCreate: 'routines:create',
+  routinesUpdate: 'routines:update',
+  routinesDelete: 'routines:delete',
+  routinesRun: 'routines:run',
+  routinesStop: 'routines:stop',
+  runsList: 'routines:runs',
+  runsChanged: 'routines:runs:changed',
+  runsOpenShot: 'routines:runs:open-shot',
+
   cursor: 'overlay:cursor',
   buddy: 'overlay:buddy',
   captureReady: 'overlay:capture-ready',
@@ -48,5 +63,7 @@ export const IPC = {
   voiceLevel: 'voice:level',
   voiceStopped: 'voice:stopped',
   sttStatus: 'voice:stt-status',
-  speechDone: 'voice:speech-done'
+  speechDone: 'voice:speech-done',
+  audioChunk: 'voice:audio-chunk',
+  audioEnd: 'voice:audio-end'
 } as const

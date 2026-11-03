@@ -14,6 +14,10 @@ extraResources:
 mac:
   category: public.app-category.productivity
   icon: resources/icon.png
+  # Ayudante nativo (Apple Intelligence, dictado, OCR, teclado/ratón). Lo compila «npm run build:apple».
+  extraResources:
+    - from: native/apple/bin/buddy-apple
+      to: buddy-apple
   target:
     - dmg
     - zip
@@ -21,6 +25,7 @@ mac:
     LSUIElement: true
     NSMicrophoneUsageDescription: Buddy te escucha cuando pulsas el atajo de voz. El audio se transcribe en tu equipo.
     NSAppleEventsUsageDescription: Buddy abre la Terminal para que inicies sesión en Claude Code o Codex.
+    NSSpeechRecognitionUsageDescription: Buddy transcribe tu voz en tu equipo con el dictado de Apple.
 win:
   icon: resources/icon.png
   target: nsis

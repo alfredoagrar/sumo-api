@@ -132,6 +132,16 @@ describe('argumentos de las CLIs', () => {
     assert.ok(on[on.indexOf('--allowedTools') + 1].includes('Bash'))
   })
 
+  it('el orquestador añade el servidor MCP de Buddy y permite sus herramientas', () => {
+    const config = '{"mcpServers":{"buddy":{"type":"http","url":"http://127.0.0.1:1/mcp"}}}'
+    const args = buildClaudeAgentArgs({ appendSystemPrompt: 'x', allowShell: false, mcpConfig: config, mcpAllowedTools: ['mcp__buddy'] })
+    assert.equal(args[args.indexOf('--mcp-config') + 1], config)
+    assert.ok(args[args.indexOf('--allowedTools') + 1].split(',').includes('mcp__buddy'))
+    // Las herramientas propias de Claude siguen siendo las mismas.
+    assert.ok(!args[args.indexOf('--tools') + 1].includes('mcp__buddy'))
+    assert.ok(!buildClaudeAgentArgs({ appendSystemPrompt: 'x', allowShell: false }).includes('--mcp-config'))
+  })
+
   it('mensaje stream-json con imagen antes del texto', () => {
     const msg = JSON.parse(buildClaudeUserMessage('hola', { base64: 'AAAA', mime: 'image/jpeg' }))
     assert.equal(msg.type, 'user')
@@ -196,6 +206,14 @@ describe('salida en streaming', () => {
     assert.deepEqual(notes, [
       { kind: 'text', text: 'Voy' },
       { kind: 'tool', text: 'Write: /w/a.md' }
+    ])
+    const buddy = describeClaudeEvent({
+      type: 'assistant',
+      message: { content: [{ type: 'tool_use', name: 'mcp__buddy__click', input: { target: 'the Save button' } }, { type: 'tool_use', name: 'mcp__buddy__screen_look', input: {} }] }
+    })
+    assert.deepEqual(buddy, [
+      { kind: 'tool', text: 'Buddy · click: the Save button' },
+      { kind: 'tool', text: 'Buddy · screen_look' }
     ])
   })
 

@@ -236,7 +236,8 @@ export function Overlay() {
 
   // Hint compacto junto al buddy.
   let hint: { kind: 'listening' | 'working' | 'speaking' | 'error'; text: string } | null = null
-  if (state === 'listening') hint = { kind: 'listening', text: es ? 'Escuchando' : 'Listening' }
+  // Con el dictado de Apple, mientras hablas se ve lo que va entendiendo (solo el final, para que quepa).
+  if (state === 'listening') hint = { kind: 'listening', text: text ? (text.length > 46 ? `…${text.slice(-45)}` : text) : es ? 'Escuchando' : 'Listening' }
   else if (state === 'transcribing') hint = { kind: 'working', text: text ?? (es ? 'Transcribiendo…' : 'Transcribing…') }
   else if (state === 'thinking') hint = { kind: 'working', text: text ?? (es ? 'Pensando…' : 'Thinking…') }
   else if (state === 'speaking' && text && settings?.showCaptions !== false) hint = { kind: 'speaking', text }

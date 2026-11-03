@@ -3,6 +3,8 @@
 export interface RecorderEvents {
   onLevel: (level: number) => void
   onAutoStop: () => void
+  /** Cada trozo de audio tal como llega del micrófono (para el dictado de Apple en streaming). */
+  onChunk?: (chunk: Float32Array, sampleRate: number) => void
 }
 
 const TARGET_RATE = 16_000
@@ -72,6 +74,7 @@ export class Recorder {
   private onChunk(chunk: Float32Array): void {
     if (this.stopped) return
     this.chunks.push(chunk)
+    this.events.onChunk?.(chunk, this.ctx?.sampleRate ?? 48_000)
     let sum = 0
     for (let i = 0; i < chunk.length; i++) sum += chunk[i] * chunk[i]
     const rms = Math.sqrt(sum / chunk.length)

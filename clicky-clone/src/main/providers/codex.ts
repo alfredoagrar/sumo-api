@@ -78,18 +78,22 @@ export const codexProvider: Provider = {
   },
 
   async ask(req, settings, signal) {
+    return parseAnswer(await this.structured({ ...req, schema: ANSWER_SCHEMA }, settings, signal), req.image)
+  },
+
+  async structured(req, settings, signal) {
     const bin = binary(settings)
     const dir = await mkdtemp(join(tmpdir(), 'buddy-codex-'))
     try {
       const schemaPath = join(dir, 'schema.json')
       const outputPath = join(dir, 'answer.json')
-      await writeFile(schemaPath, JSON.stringify(ANSWER_SCHEMA))
+      await writeFile(schemaPath, JSON.stringify(req.schema))
       const args = buildCodexAskArgs({
         cwd: dir,
         imagePath: req.image?.path,
         schemaPath,
         outputPath,
-        model: settings.codex.model || undefined,
+        model: req.model || settings.codex.model || undefined,
         reasoningEffort: settings.codex.reasoningEffort || undefined
       })
       const out = collector()
@@ -107,7 +111,7 @@ export const codexProvider: Provider = {
       if (run.timedOut) throw new ProviderError('ChatGPT tardó demasiado en responder.')
       const text = (await readIfExists(outputPath)) || out.message() || ''
       if (!text) throw new ProviderError(friendlyCliError('codex', out.error() ?? (run.stderr || `código ${run.code}`)))
-      return parseAnswer(text, req.image)
+      return text
     } finally {
       await rm(dir, { recursive: true, force: true }).catch(() => undefined)
     }
