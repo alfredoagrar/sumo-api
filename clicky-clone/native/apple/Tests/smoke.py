@@ -65,6 +65,30 @@ assert unknown["error"]["code"] == "unknown_method", unknown
 bad_schema = call(7, "generate", {"prompt": "x", "schema": {"name": "Bad", "properties": [{"name": "a", "type": "date"}]}})
 assert bad_schema["error"]["code"] == "invalid_params", bad_schema
 
+# Dictado: voz sintetizada con `say` en Float32 a 16 kHz, enviada en trozos como lo hace Buddy.
+# Es informativo: en las máquinas virtuales puede faltar el modelo de dictado, y eso no es un fallo del ayudante.
+if len(sys.argv) > 3:
+    import base64
+    import struct
+
+    with open(sys.argv[3], "rb") as f:
+        wav = f.read()
+    data_at = wav.find(b"data")
+    size = struct.unpack("<I", wav[data_at + 4 : data_at + 8])[0]
+    pcm = wav[data_at + 8 : data_at + 8 + size]
+    locale = sys.argv[4] if len(sys.argv) > 4 else "es-MX"
+    begin = call(8, "stt.begin", {"sid": "smoke", "locale": locale, "sampleRate": 16000, "contextualStrings": ["rutina", "Buddy"]}, timeout=240)
+    if "result" in begin:
+        chunk = 1600 * 4
+        for i in range(0, len(pcm), chunk):
+            proc.stdin.write(json.dumps({"method": "stt.audio", "params": {"sid": "smoke", "data": base64.b64encode(pcm[i : i + chunk]).decode()}}) + "\n")
+        proc.stdin.flush()
+        end = call(9, "stt.end", {"sid": "smoke"}, timeout=60)
+        print(f"Dictado ({begin['result']['module']}, {begin['result']['locale']}): {end.get('result', end)}")
+    else:
+        assert begin["error"]["code"] in ("unsupported_locale", "assets", "internal"), begin
+        print(f"Dictado no disponible en esta máquina: {begin['error']['message']}")
+
 proc.stdin.close()
 proc.wait(timeout=10)
 print("Prueba de humo superada")

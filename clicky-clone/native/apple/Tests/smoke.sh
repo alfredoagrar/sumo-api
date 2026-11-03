@@ -6,4 +6,13 @@ BIN="$(pwd)/bin/buddy-apple"
 TMP=$(mktemp -d)
 xcrun swiftc -swift-version 5 Tests/render-text.swift -o "$TMP/render-text"
 "$TMP/render-text" "$TMP/texto.png"
-python3 Tests/smoke.py "$BIN" "$TMP/texto.png"
+# Voz sintetizada para probar el dictado (en español si hay una voz instalada; si no, en inglés).
+VOICE=$(say -v '?' 2>/dev/null | awk '/es_MX|es_ES/ {print $1; exit}')
+if [ -n "$VOICE" ] && say -v "$VOICE" -o "$TMP/voz.aiff" "Ejecuta la rutina de inicio de sesión"; then
+  LOCALE=es-MX
+else
+  say -o "$TMP/voz.aiff" "Run the login routine"
+  LOCALE=en-US
+fi
+afconvert -f WAVE -d LEF32@16000 -c 1 "$TMP/voz.aiff" "$TMP/voz.wav"
+python3 Tests/smoke.py "$BIN" "$TMP/texto.png" "$TMP/voz.wav" "$LOCALE"
