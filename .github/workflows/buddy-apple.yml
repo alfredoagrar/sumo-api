@@ -1,0 +1,42 @@
+# Compila y prueba el ayudante nativo de macOS de Buddy (clicky-clone/native/apple).
+# Solo corre cuando cambia el ayudante. Compila con Xcode 26 (SDK de macOS 26) y con Xcode 27
+# (SDK de macOS 27, que activa las imágenes en Apple Intelligence).
+name: Buddy · ayudante de macOS
+
+on:
+  push:
+    paths:
+      - 'clicky-clone/native/apple/**'
+      - '.github/workflows/buddy-apple.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compilar y probar (${{ matrix.xcode }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-26
+            xcode: Xcode 26
+          - runner: xcode-27
+            xcode: Xcode 27
+    defaults:
+      run:
+        working-directory: clicky-clone/native/apple
+    steps:
+      - uses: actions/checkout@v4
+      - name: Herramientas
+        run: |
+          xcodebuild -version
+          swift --version
+          echo "SDK de macOS: $(xcrun --sdk macosx --show-sdk-version)"
+      - name: Compilar
+        run: ./build.sh
+      - name: Prueba de humo
+        run: ./Tests/smoke.sh
