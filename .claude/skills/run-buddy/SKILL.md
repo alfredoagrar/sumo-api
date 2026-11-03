@@ -1,6 +1,6 @@
 ---
 name: run-buddy
-description: Ejecuta y maneja Buddy (clicky-clone, Electron + React) en un contenedor Linux sin pantalla, con Xvfb y Playwright. Hace una pregunta real con Claude Code (y opcionalmente Jev simulado para señalar), imprime la cronología del buddy y guarda capturas. Úsala para "ejecuta la app", "pruébala de verdad" o para ver un cambio de clicky-clone funcionando.
+description: Ejecuta y maneja Buddy (clicky-clone, Electron + React) en un contenedor Linux sin pantalla, con Xvfb y Playwright. Hace una pregunta real con Claude Code (y opcionalmente Jev simulado para señalar), imprime la cronología del buddy y guarda capturas. También prueba Apple Intelligence, el dictado de Apple, las rutinas y el orquestador con un ayudante de macOS simulado. Úsala para "ejecuta la app", "pruébala de verdad" o para ver un cambio de clicky-clone funcionando.
 ---
 
 # Ejecutar Buddy (clicky-clone)
@@ -51,6 +51,29 @@ Variables útiles:
 | `DELAY_MS`, `BOX`, `NEEDS` (servidor) | Latencia, caja y probabilidad de "hay que señalar" de Jev |
 | `OUT=/ruta` | Carpeta de las capturas (por defecto `/tmp/buddy-run`) |
 
+## 3b. Apple Intelligence, dictado, rutinas y orquestador (ayudante de macOS simulado)
+
+`drive-apple.cjs` arranca Buddy con `BUDDY_APPLE_HELPER` apuntando a `clicky-clone/test/fixtures/fake-apple-helper.mjs`, que habla el mismo protocolo que el ayudante en Swift (`native/apple`), y con un micrófono simulado de Chromium. Con el servidor de Jev simulado en marcha (paso 3):
+
+```bash
+NOUL_RULES='{"error": 0.04}' node $S/jev-mock.cjs > /tmp/jev-mock.log 2>&1 &
+xvfb-run -a -s "-screen 0 1440x900x24" node $S/drive-apple.cjs
+kill "$(cat /tmp/jev-mock.pid)"
+```
+
+`STEPS` elige qué probar (por defecto `fast,voice,run`, sin gastar tu plan):
+
+| Paso | Qué prueba | Qué esperar |
+|---|---|---|
+| `fast` | Pregunta sencilla: Apple Intelligence responde y señala | `tier: "apple"`, `pointSource: "ocr"` o `"jev"`, unos 150-300 ms |
+| `voice` | Dictado de Apple en streaming → «ejecuta la rutina revisar agentes» | Hints con el texto parcial y la rutina `passed` (`trigger: "voice"`) |
+| `run` | La rutina desde el panel | 6 pasos `passed` y los clics/teclas en `fake-apple.log` |
+| `complex` | Apple Intelligence la pasa a Claude (**usa tu plan**) | Respuesta de Claude sin `tier` |
+| `create` | Claude define una rutina (**usa tu plan**) | Pasos con `target`/`condition` en inglés |
+| `orchestrate` | «Hazlo tú: …» con las herramientas MCP (**usa tu plan**) | Tarea `orchestrator` con `Buddy · screen_check` y `Buddy · run_routine` |
+
+`NOUL_RULES` hace que el mock de Jev conteste 0.04 a las comprobaciones que mencionan «error» (para que pase el `check` negativo). El ayudante simulado no mueve el cursor de verdad: el vigilante de «mueve el ratón para detener» toma como referencia la posición real tras cada clic, así que no interrumpe la rutina.
+
 ## 4. Qué comprobar
 
 - `proveedores:` muestra Claude con "Sesión iniciada con tu cuenta de Claude".
@@ -66,4 +89,5 @@ Variables útiles:
 - Xvfb no tiene voces de sistema: Buddy no habla, solo muestra el subtítulo (la app lo detecta y espera el tiempo de lectura).
 - `api.typesafe.ai` también está bloqueado y no hay API key: por eso Jev se prueba con `jev-mock.cjs` (`TYPESAFE_BASE_URL`). Su precisión real no se puede medir aquí.
 - No busques el mock con `pkill -f` ni `ps | grep` por su nombre: el patrón también coincide con la línea de comandos de tu propia shell (incluido el texto de un heredoc) y la mata. Usa el PID que guarda el propio mock en `/tmp/jev-mock.pid`. Si el mock dice que el puerto está en uso, quedó otro vivo: detenlo con ese PID o búscalo por puerto con `lsof -ti tcp:47811` (no hay `ss` ni `netstat` en el contenedor).
-- Cada ejecución gasta una petición real de tu plan de Claude.
+- Cada ejecución gasta una petición real de tu plan de Claude (en `drive-apple.cjs`, solo los pasos `complex`, `create` y `orchestrate`).
+- El ayudante en Swift no se puede compilar aquí (no hay SDK de macOS): lo compila y prueba el workflow `.github/workflows/buddy-apple.yml` en runners de macOS 26 y 27. Esas máquinas virtuales no tienen Apple Intelligence; el OCR preciso falla en la de macOS 27 y responde el rápido.

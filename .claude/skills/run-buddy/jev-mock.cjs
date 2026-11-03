@@ -1,39 +1,47 @@
 // Servidor que imita la API de TypeSafe (Jev) para probar Buddy sin red ni API key.
-// Variables: PORT (47811), DELAY_MS (150), CONF (0.84), NEEDS (0.93),
-// BOX="top,bottom,left,right" en fracciones (por defecto: "Ajustes" en la barra lateral del panel).
+// Contesta cada pregunta según su tipo (noul → probabilidad, box → caja), con el nombre que pidió Buddy.
+// Variables: PORT (47811), DELAY_MS (150), CONF (0.84), NEEDS (0.93, probabilidad de los noul),
+// BOX="top,bottom,left,right" en fracciones (por defecto: "Ajustes" en la barra lateral del panel),
+// NOUL_RULES='{"error": 0.05}': si la pregunta contiene esa palabra, el noul vale eso.
 // Guarda su PID en PID_FILE (/tmp/jev-mock.pid) para poder detenerlo con: kill "$(cat /tmp/jev-mock.pid)"
 const fs = require('node:fs')
 const http = require('node:http')
 
 const pidFile = process.env.PID_FILE || '/tmp/jev-mock.pid'
-
 const port = Number(process.env.PORT || 47811)
 const delay = Number(process.env.DELAY_MS || 150)
 const [top, bottom, left, right] = (process.env.BOX || '0.356,0.38,0.165,0.215').split(',').map(Number)
+const rules = JSON.parse(process.env.NOUL_RULES || '{}')
+
+function noulFor(instructions) {
+  const text = String(instructions || '').toLowerCase()
+  for (const [word, value] of Object.entries(rules)) if (text.includes(word.toLowerCase())) return Number(value)
+  return Number(process.env.NEEDS || 0.93)
+}
 
 http
   .createServer((req, res) => {
-    req.resume()
+    const chunks = []
+    req.on('data', (c) => chunks.push(c))
     req.on('end', () => {
       const send = (status, body) => {
         res.writeHead(status, { 'content-type': 'application/json' })
         res.end(JSON.stringify(body))
       }
-      console.log(`${new Date().toISOString()} ${req.method} ${req.url} auth=${Boolean(req.headers.authorization)} images=${req.headers['typesafe-danger-zone-images'] || '-'}`)
+      const body = Buffer.concat(chunks).toString('latin1')
+      // Las preguntas van en la parte JSON del multipart: "nombre":{"type":"noul","instructions":"…"}
+      const questions = [...body.matchAll(/"(\w+)":\{"type":"(noul|box)"(?:,"instructions":"((?:[^"\\]|\\.)*)")?/g)].map((m) => ({ name: m[1], type: m[2], instructions: m[3] }))
+      console.log(`${new Date().toISOString()} ${req.method} ${req.url} auth=${Boolean(req.headers.authorization)} images=${req.headers['typesafe-danger-zone-images'] || '-'} ${questions.map((q) => `${q.name}:${q.type}`).join(',')}`)
       if (req.url === '/v1/models') return send(200, { models: [{ name: 'jev-preview', description: 'mock', release_date: '2026-09-01' }] })
       if (req.url !== '/v1/systemone') return send(404, { error: 'not found' })
-      setTimeout(
-        () =>
-          send(200, {
-            model: 'jev-preview',
-            answers: {
-              needsPoint: { type: 'noul', noul: Number(process.env.NEEDS || 0.93) },
-              target: { type: 'box', box: { top, bottom, left, right }, confidence: Number(process.env.CONF || 0.84) }
-            },
-            usage: { input_tokens: 900, output_tokens: 3 }
-          }),
-        delay
-      )
+      const answers = {}
+      for (const q of questions.length ? questions : [{ name: 'needsPoint', type: 'noul' }, { name: 'target', type: 'box' }]) {
+        answers[q.name] =
+          q.type === 'noul'
+            ? { type: 'noul', noul: noulFor(q.instructions) }
+            : { type: 'box', box: { top, bottom, left, right }, confidence: Number(process.env.CONF || 0.84) }
+      }
+      setTimeout(() => send(200, { model: 'jev-preview', answers, usage: { input_tokens: 900, output_tokens: 3 } }), delay)
     })
   })
   .on('error', (err) => {
