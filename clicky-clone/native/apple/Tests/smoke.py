@@ -84,7 +84,10 @@ if len(sys.argv) > 3:
             proc.stdin.write(json.dumps({"method": "stt.audio", "params": {"sid": "smoke", "data": base64.b64encode(pcm[i : i + chunk]).decode()}}) + "\n")
         proc.stdin.flush()
         end = call(9, "stt.end", {"sid": "smoke"}, timeout=60)
-        print(f"Dictado ({begin['result']['module']}, {begin['result']['locale']}): {end.get('result', end)}")
+        heard = end.get("result", {}).get("text", "")
+        print(f"Dictado ({begin['result']['module']}, {begin['result']['locale']}): {heard!r}")
+        expected = "rutina" if locale.startswith("es") else "routine"
+        print(f"{'Bien' if expected in heard.lower() else 'Aviso'}: {'reconoció' if expected in heard.lower() else 'no reconoció'} «{expected}»")
     else:
         assert begin["error"]["code"] in ("unsupported_locale", "assets", "internal"), begin
         print(f"Dictado no disponible en esta máquina: {begin['error']['message']}")

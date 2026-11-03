@@ -7,7 +7,9 @@ TMP=$(mktemp -d)
 xcrun swiftc -swift-version 5 Tests/render-text.swift -o "$TMP/render-text"
 "$TMP/render-text" "$TMP/texto.png"
 # Voz sintetizada para probar el dictado (en español si hay una voz instalada; si no, en inglés).
-VOICE=$(say -v '?' 2>/dev/null | awk '/es_MX|es_ES/ {print $1; exit}')
+# El nombre de la voz puede tener espacios, p. ej. "Eddy (Spanish (Mexico))": lo cogemos entero.
+VOICE=$(say -v '?' 2>/dev/null | sed -nE 's/^(.*[^ ]) +es_(MX|ES) +#.*/\1/p' | head -n 1)
+echo "Voz para la prueba de dictado: ${VOICE:-ninguna en español}"
 if [ -n "$VOICE" ] && say -v "$VOICE" -o "$TMP/voz.aiff" "Ejecuta la rutina de inicio de sesión"; then
   LOCALE=es-MX
 else
