@@ -174,9 +174,7 @@ final class Dictation: @unchecked Sendable {
         }
         try await analyzer.start(inputSequence: stream)
 
-        lock.lock()
-        sessions[sid] = session
-        lock.unlock()
+        store(session)
         return ["locale": locale.identifier(.bcp47), "module": moduleName]
     }
 
@@ -224,6 +222,13 @@ final class Dictation: @unchecked Sendable {
         sessions.removeAll()
         lock.unlock()
         for session in all { session.continuation.finish() }
+    }
+
+    // NSLock no puede usarse directamente dentro de funciones async: lo envolvemos en funciones síncronas.
+    private func store(_ session: DictationSession) {
+        lock.lock()
+        sessions[session.sid] = session
+        lock.unlock()
     }
 
     private func take(_ sid: String) -> DictationSession? {

@@ -53,7 +53,11 @@ enum Intelligence {
         }
         let instructions = params["instructions"] as? String ?? ""
         let sampling: GenerationOptions.SamplingMode? = (params["greedy"] as? Bool ?? true) ? .greedy : nil
+        #if BUDDY_SDK_27
+        let options = GenerationOptions(samplingMode: sampling, temperature: nil, maximumResponseTokens: params["maxTokens"] as? Int)
+        #else
         let options = GenerationOptions(sampling: sampling, temperature: nil, maximumResponseTokens: params["maxTokens"] as? Int)
+        #endif
         // Una sesión nueva por petición: el contexto del modelo es pequeño y no queremos historial.
         let session = LanguageModelSession(model: SystemLanguageModel.default, tools: [], instructions: instructions)
         let started = Date()

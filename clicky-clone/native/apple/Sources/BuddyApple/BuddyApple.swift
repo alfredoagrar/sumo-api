@@ -137,7 +137,7 @@ enum RPC {
             Intelligence.prewarm(params)
             return [:]
         case "ocr":
-            return try OCR.recognize(params)
+            return try await OCR.recognize(params)
         case "stt.begin":
             return try await Dictation.shared.begin(params)
         case "stt.end":

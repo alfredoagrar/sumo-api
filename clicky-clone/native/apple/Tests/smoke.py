@@ -35,6 +35,7 @@ text = " ".join(line["text"] for line in ocr["result"]["lines"])
 assert "Guardar" in text, f"El OCR no leyó el texto: {text!r}"
 line = ocr["result"]["lines"][0]
 assert 0 <= line["x"] < 640 and 0 <= line["y"] < 200, line
+print(f"OCR con {ocr['result']['engine']}")
 
 click = call(3, "input.click", {"x": 5, "y": 5})
 assert "result" in click or click["error"]["code"] == "not_trusted", click
