@@ -180,7 +180,9 @@ const ICONS: Record<string, string> = {
   play: 'M7 5v14l11-7z',
   stop: 'M6 6h12v12H6z',
   refresh: 'M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5',
-  trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13'
+  trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',
+  list: 'M9 6h11M9 12h11M9 18h11M4.5 6l1 1 2-2M4.5 12l1 1 2-2M4.5 18l1 1 2-2',
+  sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z'
 }
 
 export function Icon({ name, size = 16 }: { name: keyof typeof ICONS | string; size?: number }) {

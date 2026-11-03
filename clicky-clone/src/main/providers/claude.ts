@@ -78,11 +78,15 @@ export const claudeProvider: Provider = {
   },
 
   async ask(req, settings, signal) {
+    return parseAnswer(await this.structured({ ...req, schema: ANSWER_SCHEMA }, settings, signal), req.image)
+  },
+
+  async structured(req, settings, signal) {
     const bin = binary(settings)
     const args = buildClaudeAskArgs({
       systemPrompt: req.systemPrompt,
-      schema: ANSWER_SCHEMA,
-      model: settings.claude.model || undefined
+      schema: req.schema,
+      model: req.model || settings.claude.model || undefined
     })
     const input = buildClaudeUserMessage(req.userPrompt, req.image && { base64: req.image.base64, mime: req.image.mime })
     const out = collector()
@@ -103,15 +107,18 @@ export const claudeProvider: Provider = {
     if (limit && (!result || result.isError)) throw new ProviderError(limit)
     if (!result) throw new ProviderError(friendlyCliError('claude', run.stderr || run.stdout || `código ${run.code}`))
     if (result.isError) throw new ProviderError(friendlyCliError('claude', result.text || run.stderr))
-    return parseAnswer(result.structured ?? result.text, req.image)
+    return result.structured ?? result.text
   },
 
   async agent(req, settings, onNote, signal) {
     const bin = binary(settings)
+    const instructions = buildAgentInstructions(req.language, Boolean(req.image))
     const args = buildClaudeAgentArgs({
-      appendSystemPrompt: buildAgentInstructions(req.language, Boolean(req.image)),
+      appendSystemPrompt: req.mcp ? `${instructions}\n\n${req.mcp.instructions}` : instructions,
       model: settings.claude.agentModel || undefined,
-      allowShell: settings.agents.allowShell
+      allowShell: settings.agents.allowShell,
+      mcpConfig: req.mcp?.config,
+      mcpAllowedTools: req.mcp?.allowedTools
     })
     const input = buildClaudeUserMessage(req.prompt, req.image && { base64: req.image.base64, mime: req.image.mime })
     const out = collector((event) => {

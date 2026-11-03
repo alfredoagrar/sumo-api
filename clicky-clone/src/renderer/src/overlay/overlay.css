@@ -239,6 +239,11 @@ body,
   color: var(--pill-muted);
 }
 
+/* Con el dictado de Apple, el hint muestra lo que va entendiendo mientras hablas. */
+.hint-listening {
+  max-width: 300px;
+}
+
 .hint-speaking,
 .hint-error {
   max-width: 280px;

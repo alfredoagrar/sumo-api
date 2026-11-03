@@ -8,7 +8,10 @@ export function defaultSettings(workspaceDir: string): Settings {
     claude: { binary: '', model: 'sonnet', agentModel: '' },
     codex: { binary: '', model: '', reasoningEffort: 'low' },
     voice: { enabled: true, voiceURI: '', rate: 1.05 },
-    stt: { model: 'onnx-community/whisper-base', device: 'auto' },
+    stt: { engine: 'auto', model: 'onnx-community/whisper-base', device: 'auto' },
+    apple: { enabled: true, fastAnswers: true },
+    routines: { stopOnMouseMove: true, escalateToModel: true },
+    orchestrator: { screenControl: true },
     hotkeys: {
       talk: 'CommandOrControl+Shift+Space',
       type: 'CommandOrControl+Shift+K',
@@ -28,6 +31,7 @@ const ENUMS: Record<string, readonly string[]> = {
   language: ['es', 'en'],
   'codex.reasoningEffort': ['', 'minimal', 'low', 'medium', 'high'],
   'stt.device': ['auto', 'webgpu', 'wasm'],
+  'stt.engine': ['auto', 'apple', 'whisper'],
   'pointer.engine': ['model', 'jev']
 }
 

@@ -39,6 +39,10 @@ export interface ClaudeAgentOptions {
   appendSystemPrompt: string
   model?: string
   allowShell: boolean
+  /** JSON para `--mcp-config` (servidor MCP de Buddy en el modo orquestador). */
+  mcpConfig?: string
+  /** Herramientas MCP permitidas sin preguntar, p. ej. "mcp__buddy". */
+  mcpAllowedTools?: string[]
 }
 
 /** `claude -p` como agente en segundo plano dentro de una carpeta de trabajo. */
@@ -52,9 +56,10 @@ export function buildClaudeAgentArgs(o: ClaudeAgentOptions): string[] {
     '--verbose',
     '--permission-mode', 'acceptEdits',
     '--tools', tools.join(','),
-    '--allowedTools', tools.join(','),
+    '--allowedTools', [...tools, ...(o.mcpAllowedTools ?? [])].join(','),
     '--append-system-prompt', o.appendSystemPrompt
   ]
+  if (o.mcpConfig) args.push('--mcp-config', o.mcpConfig)
   if (o.model) args.push('--model', o.model)
   return args
 }

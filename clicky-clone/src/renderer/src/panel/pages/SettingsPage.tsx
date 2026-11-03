@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { JevStatus, JevTestResult, Settings } from '../../../../shared/types'
+import type { AppleStatus, JevStatus, JevTestResult, Settings } from '../../../../shared/types'
 import { api } from '../../common/api'
 import type { AppData } from '../App'
 import { Card, Field, HotkeyInput, TextSetting, Toggle } from '../components'
@@ -40,6 +40,7 @@ function JevCard({ data }: { data: AppData }) {
     setStatus(await api.setJevKey(key))
     setKey('')
     setTest(null)
+    data.refreshJev()
   }
   const runTest = async (): Promise<void> => {
     setTest('running')
@@ -82,7 +83,7 @@ function JevCard({ data }: { data: AppData }) {
             Guardar
           </button>
           {status?.configured && !status.fromEnv && (
-            <button type="button" className="btn small ghost" onClick={() => void api.setJevKey('').then(setStatus)}>
+            <button type="button" className="btn small ghost" onClick={() => void api.setJevKey('').then(setStatus).then(data.refreshJev)}>
               Borrar
             </button>
           )}
@@ -105,6 +106,79 @@ function JevCard({ data }: { data: AppData }) {
           )}
         </div>
       </div>
+    </Card>
+  )
+}
+
+function Status({ ok, label, text }: { ok: boolean | null; label: string; text: string }) {
+  return (
+    <div className="row">
+      <span className="row-text">
+        <span>
+          <span className={`dot dot-${ok === null ? 'neutral' : ok ? 'ok' : 'warn'}`} /> {label}
+        </span>
+        <small className="muted">{text}</small>
+      </span>
+    </div>
+  )
+}
+
+/** Apple Intelligence, dictado de Apple y teclado/ratón a través del ayudante de macOS. */
+function AppleCard({ data }: { data: AppData }) {
+  const { settings: s, save, apple } = data
+  const [asking, setAsking] = useState(false)
+  const ready = apple.helper === 'ready'
+  const intelligence = (st: AppleStatus): string =>
+    st.intelligence.available
+      ? `Disponible${st.intelligence.imageInput ? ' · también ve la captura (macOS 27)' : ' · solo texto (con macOS 27 también ve la captura)'}`
+      : st.intelligence.reason ?? (ready ? 'No disponible en este Mac.' : st.detail)
+  return (
+    <Card
+      title={
+        <>
+          Apple Intelligence <small className="muted">· en tu Mac</small>
+        </>
+      }
+      subtitle="El modelo de Apple corre en tu equipo, gratis y sin conexión. Buddy lo usa para entender mejor tu dictado, decidir quién responde y contestar lo sencillo al instante (con Jev para señalar). Claude o ChatGPT quedan para lo complejo."
+    >
+      <Status ok={ready} label="Ayudante de macOS" text={apple.detail} />
+      <Status ok={ready ? apple.intelligence.available : null} label="Apple Intelligence" text={intelligence(apple)} />
+      <Status ok={ready ? apple.speech.available : null} label="Dictado de Apple" text={ready ? apple.speech.detail ?? 'Disponible' : 'Sin el ayudante se usa Whisper.'} />
+      <div className="row">
+        <span className="row-text">
+          <span>
+            <span className={`dot dot-${apple.input.trusted ? 'ok' : 'warn'}`} /> Teclado y ratón (rutinas)
+          </span>
+          <small className="muted">{apple.input.trusted ? `Listo (${apple.input.backend === 'helper' ? 'ayudante de macOS' : 'xdotool'})` : apple.input.detail}</small>
+        </span>
+        {ready && !apple.input.trusted && (
+          <div className="row-control">
+            <button
+              type="button"
+              className="btn small ghost"
+              disabled={asking}
+              onClick={() => {
+                setAsking(true)
+                void api.requestAccessibility().finally(() => setAsking(false))
+              }}
+            >
+              Dar permiso de Accesibilidad
+            </button>
+          </div>
+        )}
+      </div>
+      <Toggle
+        label="Usar Apple Intelligence para entender tus peticiones"
+        hint="Corrige el dictado con lo que hay en pantalla y tus rutinas, y decide si es una pregunta, una rutina o una tarea."
+        checked={s.apple.enabled}
+        onChange={(v) => void save({ apple: { enabled: v } })}
+      />
+      <Toggle
+        label="Responder lo sencillo en el equipo"
+        hint="Si Apple Intelligence está seguro, responde al momento sin gastar tu plan. Ante la duda, pregunta a Claude/ChatGPT."
+        checked={s.apple.fastAnswers}
+        onChange={(v) => void save({ apple: { fastAnswers: v } })}
+      />
     </Card>
   )
 }
@@ -195,7 +269,33 @@ export function SettingsPage({ data }: { data: AppData }) {
         )}
       </Card>
 
+      <AppleCard data={data} />
+
       <JevCard data={data} />
+
+      <Card
+        title="Rutinas y orquestador"
+        subtitle="Las rutinas repiten tareas de QA con Jev y tu teclado y ratón. Para tareas largas, Claude orquesta con las mismas herramientas («hazlo tú: …»)."
+      >
+        <Toggle
+          label="Dejar que Claude use la pantalla"
+          hint="En las tareas que orquesta, Claude puede hacer clic y escribir con las herramientas de Buddy. Pulsa Esc o mueve el ratón para detenerlo."
+          checked={s.orchestrator.screenControl}
+          onChange={(v) => set({ orchestrator: { screenControl: v } })}
+        />
+        <Toggle
+          label="Detener si muevo el ratón"
+          hint="Mientras Buddy hace clics, mover el ratón detiene la rutina o la tarea."
+          checked={s.routines.stopOnMouseMove}
+          onChange={(v) => set({ routines: { stopOnMouseMove: v } })}
+        />
+        <Toggle
+          label="Preguntar al modelo si Jev no está seguro"
+          hint="Más lento y usa tu plan, pero evita que la rutina falle por un elemento difícil de encontrar. Sin Jev, todas las comprobaciones las hace el modelo."
+          checked={s.routines.escalateToModel}
+          onChange={(v) => set({ routines: { escalateToModel: v } })}
+        />
+      </Card>
 
       <Card title="Idioma y voz">
         <Field label="Idioma" hint="Idioma en el que hablas y en el que responde Buddy.">
@@ -239,8 +339,18 @@ export function SettingsPage({ data }: { data: AppData }) {
         />
       </Card>
 
-      <Card title="Dictado" subtitle="Tu voz se transcribe en tu equipo con Whisper: el audio no sale de tu computadora.">
-        <Field label="Modelo de transcripción">
+      <Card title="Dictado" subtitle="Tu voz se transcribe en tu equipo: el audio no sale de tu computadora.">
+        <Field
+          label="Motor"
+          hint="El dictado de Apple (macOS 26 o superior) entiende mejor y muestra lo que va oyendo mientras hablas. Whisper funciona en cualquier sistema."
+        >
+          <select className="input" value={s.stt.engine} onChange={(e) => set({ stt: { engine: e.target.value as Settings['stt']['engine'] } })}>
+            <option value="auto">Automático (Apple si está disponible)</option>
+            <option value="apple">Dictado de Apple</option>
+            <option value="whisper">Whisper</option>
+          </select>
+        </Field>
+        <Field label="Modelo de Whisper">
           <select className="input" value={s.stt.model} onChange={(e) => set({ stt: { model: e.target.value } })}>
             {STT_MODELS.map((m) => (
               <option key={m.value} value={m.value}>

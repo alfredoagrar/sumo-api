@@ -1035,3 +1035,131 @@ input[type='range'] {
     grid-template-columns: auto 1fr;
   }
 }
+
+/* ---- Rutinas -------------------------------------------------------------------------------- */
+
+.dot-neutral {
+  background: var(--muted);
+}
+
+.notice {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+  font-size: 13px;
+}
+
+.notice p + p {
+  margin-top: 6px;
+}
+
+.page kbd {
+  font: inherit;
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+}
+
+.routine-summary {
+  padding: 0 16px 10px 35px;
+}
+
+.routine-body {
+  margin: 0 16px 10px;
+}
+
+.steps-list {
+  margin: 0;
+  padding: 8px 12px;
+  list-style: none;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.step-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 0;
+}
+
+.step-row + .step-row {
+  border-top: 1px solid var(--border);
+}
+
+.step-mark {
+  flex: none;
+  width: 16px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.step-passed .step-mark {
+  color: var(--ok);
+}
+
+.step-failed .step-mark,
+.step-error .step-mark {
+  color: var(--bad);
+}
+
+.step-running .step-mark {
+  color: var(--info);
+}
+
+.step-skipped {
+  opacity: 0.55;
+}
+
+.step-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.step-detail {
+  word-break: break-word;
+}
+
+.step-ms {
+  flex: none;
+  white-space: nowrap;
+}
+
+.routine-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin-top: 10px;
+}
+
+.routine-options .input {
+  width: auto;
+}
+
+.input.time {
+  width: 110px;
+}
+
+.run-history {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.turn-corrected {
+  font-size: 12px;
+  margin-top: -2px;
+}

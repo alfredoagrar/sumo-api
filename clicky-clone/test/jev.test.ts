@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { boxCenter, describeJevError, JEV_MODEL, JevPointer, jevInstructions, pointDistance, shouldPointEarly } from '../src/main/core/jev.ts'
+import { boxCenter, checkInstructions, describeJevError, JEV_MODEL, JevPointer, jevInstructions, pointDistance, shouldPointEarly } from '../src/main/core/jev.ts'
 
 // JPEG mínimo (cabecera válida) para que el SDK lo acepte como imagen.
 const JPEG_BASE64 = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0xff, 0xd9]).toString('base64')
@@ -108,6 +108,33 @@ describe('Jev: SDK con fetch simulado', () => {
       () => jev.locate(SHOT, 'x'),
       (err: unknown) => /API key de TypeSafe no es válida/.test(describeJevError(err))
     )
+  })
+
+  it('rutinas: comprueba una condición con noul', async () => {
+    const captured: Captured[] = []
+    const jev = new JevPointer({
+      getApiKey: () => 'ts-test',
+      client: { fetch: mockFetch([{ status: 200, body: { model: JEV_MODEL, answers: { visible: { type: 'noul', noul: 0.87 } }, usage: OK.usage } }], captured), compression: false }
+    })
+    const out = await jev.check(SHOT, 'the "Saved" toast')
+    assert.equal(out.probability, 0.87)
+    assert.match(captured[0].body, /"type":"noul"/)
+    assert.doesNotMatch(captured[0].body, /"type":"box"/)
+    // El cuerpo va en JSON: las comillas de la instrucción llegan escapadas.
+    assert.ok(captured[0].body.includes(JSON.stringify(checkInstructions('the "Saved" toast')).slice(1, -1)))
+    assert.match(checkInstructions('the "Saved" toast'), /'Saved'/)
+  })
+
+  it('rutinas: localiza un elemento con box', async () => {
+    const captured: Captured[] = []
+    const jev = new JevPointer({
+      getApiKey: () => 'ts-test',
+      client: { fetch: mockFetch([{ status: 200, body: { model: JEV_MODEL, answers: { target: OK.answers.target }, usage: OK.usage } }], captured), compression: false }
+    })
+    const out = await jev.find(SHOT, 'the Save button')
+    assert.deepEqual(out.point, { x: 250, y: 270 })
+    assert.equal(out.confidence, 0.81)
+    assert.match(captured[0].body, /The on-screen element: \\"the Save button\\"/)
   })
 
   it('sin API key no llama a la red', async () => {

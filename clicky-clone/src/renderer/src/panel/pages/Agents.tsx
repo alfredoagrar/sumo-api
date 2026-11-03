@@ -26,6 +26,7 @@ function TaskItem({ task }: { task: AgentTask }) {
       <button type="button" className="task-head" onClick={() => setOpen(!open)}>
         <span className={`dot dot-${st.tone} ${task.status === 'running' ? 'pulse' : ''}`} />
         <span className="task-title">{task.title}</span>
+        {task.kind === 'orchestrator' && <Badge tone="info">Orquestador</Badge>}
         <Badge tone={st.tone}>{st.label}</Badge>
         <span className="muted small-text">
           {task.provider === 'claude' ? 'Claude' : 'ChatGPT'} · {timeAgo(task.startedAt)} · {elapsed < 60 ? `${elapsed} s` : `${Math.round(elapsed / 60)} min`}

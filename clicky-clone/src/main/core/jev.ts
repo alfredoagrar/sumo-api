@@ -62,9 +62,24 @@ export function pointDistance(a: { x: number; y: number }, b: { x: number; y: nu
   return Math.round(Math.hypot(a.x - b.x, a.y - b.y))
 }
 
+/** Texto del usuario o de una rutina, en una línea y sin comillas dobles (van entre comillas). */
+function quoted(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().slice(0, 300).replace(/"/g, "'")
+}
+
+/** Rutinas: pregunta sí/no sobre la captura. */
+export function checkInstructions(condition: string): string {
+  return `Is this true in the screenshot? "${quoted(condition)}"`
+}
+
+/** Rutinas: el elemento que hay que localizar. */
+export function findInstructions(target: string): string {
+  return `The on-screen element: "${quoted(target)}"`
+}
+
 /** Preguntas en inglés (lo más fiable para el modelo); la pregunta del usuario va tal cual. */
 export function jevInstructions(question: string): { needsPoint: string; target: string } {
-  const q = question.replace(/\s+/g, ' ').trim().slice(0, 300).replace(/"/g, "'")
+  const q = quoted(question)
   return {
     needsPoint: `The user is looking at this screenshot and asked: "${q}". Is there one specific element visible in the screenshot (a button, menu, tab, field, icon or link) that the user should click or look at to do this?`,
     target: `The specific on-screen element (button, menu, tab, field, icon or link) the user should click or look at to: "${q}"`
@@ -147,6 +162,26 @@ export class JevPointer {
       this.boxOnly = true
       return ask(false)
     }
+  }
+
+  /** Rutinas (QA): probabilidad (0-1) de que la condición se cumpla en la captura. */
+  async check(shot: JevImage, condition: string, signal?: AbortSignal): Promise<{ probability: number; ms: number }> {
+    const started = Date.now()
+    const { answers } = await this.getClient().systemOne(
+      { state: Image.fromBase64(shot.base64), questions: { visible: noul(checkInstructions(condition)) }, model: JEV_MODEL },
+      { signal }
+    )
+    return { probability: answers.visible.noul, ms: Date.now() - started }
+  }
+
+  /** Rutinas: centro del elemento descrito, en píxeles de la captura. */
+  async find(shot: JevImage, target: string, signal?: AbortSignal): Promise<{ point: { x: number; y: number }; confidence: number | null; ms: number }> {
+    const started = Date.now()
+    const { answers } = await this.getClient().systemOne(
+      { state: Image.fromBase64(shot.base64), questions: { target: box(findInstructions(target)) }, model: JEV_MODEL },
+      { signal }
+    )
+    return { point: boxCenter(answers.target.box, shot), confidence: answers.target.confidence, ms: Date.now() - started }
   }
 
   /** Comprueba la API key listando los modelos de la cuenta. */

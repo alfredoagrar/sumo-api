@@ -47,6 +47,12 @@ function short(text: unknown, max = 140): string {
 }
 
 function describeClaudeTool(name: string, input: Record<string, unknown>): string {
+  // Herramientas rápidas de Buddy (modo orquestador).
+  if (name.startsWith('mcp__buddy__')) {
+    const tool = name.slice('mcp__buddy__'.length)
+    const detail = input.target ?? input.condition ?? input.text ?? input.keys ?? input.name ?? input.direction
+    return detail ? `Buddy · ${tool}: ${short(detail, 100)}` : `Buddy · ${tool}`
+  }
   const target =
     input.file_path ?? input.path ?? input.pattern ?? input.query ?? input.url ?? input.command ?? input.description
   if (name === 'TodoWrite' && Array.isArray(input.todos)) return `Plan: ${input.todos.length} pasos`

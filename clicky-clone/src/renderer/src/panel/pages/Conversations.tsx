@@ -28,10 +28,19 @@ export function Conversations({ data }: { data: AppData }) {
           {turns.map((t) => (
             <li key={t.id} className={`turn ${t.error ? 'is-error' : ''}`}>
               <div className="turn-q">{t.question}</div>
+              {t.corrected && <div className="turn-corrected muted">Entendí: «{t.corrected}»</div>}
               <div className="turn-a">{t.answer}</div>
               <div className="turn-meta">
-                <Badge tone={t.provider === 'claude' ? 'info' : 'neutral'}>{t.provider === 'claude' ? 'Claude' : 'ChatGPT'}</Badge>
-                {t.pointed && <Badge tone="ok">Señaló: {t.pointed}</Badge>}
+                {t.tier === 'apple' ? (
+                  <Badge tone="ok">Apple Intelligence</Badge>
+                ) : t.tier === 'routine' ? (
+                  <Badge tone="info">Rutina</Badge>
+                ) : t.tier === 'orchestrator' ? (
+                  <Badge tone="info">Orquestador · Claude</Badge>
+                ) : (
+                  <Badge tone={t.provider === 'claude' ? 'info' : 'neutral'}>{t.provider === 'claude' ? 'Claude' : 'ChatGPT'}</Badge>
+                )}
+                {t.pointed && <Badge tone="ok">Señaló{t.pointSource === 'ocr' ? ' (texto en pantalla)' : ''}: {t.pointed}</Badge>}
                 {t.jevMs !== undefined && (
                   <Badge tone={t.pointSource === 'jev' ? 'info' : 'neutral'}>
                     Jev {(t.jevMs / 1000).toFixed(2)} s{t.pointSource === 'jev' ? '' : ' · sin usar'}

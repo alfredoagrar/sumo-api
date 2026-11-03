@@ -47,6 +47,21 @@ const api: BuddyApi = {
   getSttStatus: () => ipcRenderer.invoke(IPC.sttStatusGet),
   onSttStatus: (cb) => subscribe(IPC.sttStatusChanged, cb),
 
+  getAppleStatus: () => ipcRenderer.invoke(IPC.appleStatus),
+  onAppleStatus: (cb) => subscribe(IPC.appleStatusChanged, cb),
+  requestAccessibility: () => ipcRenderer.invoke(IPC.appleAccessibility),
+
+  listRoutines: () => ipcRenderer.invoke(IPC.routinesList),
+  onRoutines: (cb) => subscribe(IPC.routinesChanged, cb),
+  createRoutine: (description) => ipcRenderer.invoke(IPC.routinesCreate, description),
+  updateRoutine: (id, patch) => ipcRenderer.invoke(IPC.routinesUpdate, id, patch),
+  deleteRoutine: (id) => ipcRenderer.invoke(IPC.routinesDelete, id),
+  runRoutine: (id) => ipcRenderer.invoke(IPC.routinesRun, id),
+  stopRoutine: () => ipcRenderer.invoke(IPC.routinesStop),
+  listRuns: () => ipcRenderer.invoke(IPC.runsList),
+  onRuns: (cb) => subscribe(IPC.runsChanged, cb),
+  openRunShot: (runId) => ipcRenderer.invoke(IPC.runsOpenShot, runId),
+
   onCursor: (cb) => subscribe(IPC.cursor, cb),
   onBuddy: (cb) => subscribe(IPC.buddy, cb),
   sendCaptureReady: () => ipcRenderer.send(IPC.captureReady),
@@ -58,7 +73,9 @@ const api: BuddyApi = {
   sendVoiceLevel: (level) => ipcRenderer.send(IPC.voiceLevel, level),
   sendVoiceStopped: () => ipcRenderer.send(IPC.voiceStopped),
   sendSttStatus: (status) => ipcRenderer.send(IPC.sttStatus, status),
-  sendSpeechDone: () => ipcRenderer.send(IPC.speechDone)
+  sendSpeechDone: () => ipcRenderer.send(IPC.speechDone),
+  sendAudioChunk: (samples, sampleRate) => ipcRenderer.send(IPC.audioChunk, samples, sampleRate),
+  sendAudioEnd: (hadSpeech) => ipcRenderer.send(IPC.audioEnd, hadSpeech)
 }
 
 contextBridge.exposeInMainWorld('buddy', api)

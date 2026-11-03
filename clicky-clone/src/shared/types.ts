@@ -30,9 +30,33 @@ export interface Settings {
     rate: number
   }
   stt: {
+    /**
+     * Motor de dictado. `auto` usa el dictado de Apple (SpeechAnalyzer, en el equipo) si está
+     * disponible y, si no, Whisper.
+     */
+    engine: 'auto' | 'apple' | 'whisper'
     /** Modelo Whisper (ONNX) que se ejecuta localmente con transformers.js. */
     model: string
     device: 'auto' | 'webgpu' | 'wasm'
+  }
+  apple: {
+    /** Usar Apple Intelligence (modelo de Apple en el equipo) para entender lo que pides. */
+    enabled: boolean
+    /**
+     * Responder en el equipo las preguntas sencillas (con Jev para señalar) y dejar
+     * Claude/ChatGPT solo para lo complejo.
+     */
+    fastAnswers: boolean
+  }
+  routines: {
+    /** Detener la rutina si mueves el ratón mientras actúa. */
+    stopOnMouseMove: boolean
+    /** Si Jev no encuentra algo con seguridad, preguntarle al modelo principal (más lento, usa tu plan). */
+    escalateToModel: boolean
+  }
+  orchestrator: {
+    /** Dejar que Claude use la pantalla (clics y teclado) con las herramientas de Buddy. */
+    screenControl: boolean
   }
   hotkeys: {
     talk: string
@@ -96,8 +120,16 @@ export type BuddyCommand =
   | { type: 'hide-for-capture' }
   | { type: 'show-after-capture' }
 
-/** Órdenes para el motor de voz (ventana oculta con micrófono, Whisper y síntesis de voz). */
-export type VoiceCommand = { type: 'start' } | { type: 'stop' } | { type: 'cancel' }
+/**
+ * Órdenes para el motor de voz (ventana oculta con micrófono, Whisper y síntesis de voz).
+ * Con `stream`, el audio se manda al proceso principal mientras hablas (dictado de Apple) y
+ * Whisper solo se usa si el proceso principal lo pide con `whisper-fallback`.
+ */
+export type VoiceCommand =
+  | { type: 'start'; stream?: boolean }
+  | { type: 'stop' }
+  | { type: 'cancel' }
+  | { type: 'whisper-fallback' }
 
 export type SpeechCommand = { type: 'speak'; text: string } | { type: 'stop' }
 
@@ -124,12 +156,105 @@ export interface ChatTurn {
   ms: number
   pointed?: string
   error?: boolean
-  /** Quién puso el punto en pantalla. */
-  pointSource?: 'jev' | 'model'
+  /** Quién puso el punto en pantalla (Jev, el modelo principal o el texto reconocido por OCR). */
+  pointSource?: 'jev' | 'model' | 'ocr'
   /** Lo que tardó Jev en localizar el elemento. */
   jevMs?: number
   /** Distancia entre el punto de Jev y el del modelo principal (para comparar precisión). */
   jevDeltaPx?: number
+  /**
+   * Quién resolvió la petición: Apple Intelligence en el equipo, una rutina, o el orquestador.
+   * Sin valor = el modelo principal (Claude/ChatGPT), como siempre.
+   */
+  tier?: 'apple' | 'routine' | 'orchestrator'
+  /** El dictado corregido por Apple Intelligence, si cambió. */
+  corrected?: string
+}
+
+// ---- Apple (ayudante nativo de macOS) --------------------------------------------------------
+
+export interface AppleStatus {
+  /** Estado del ayudante nativo (Swift) que da acceso a Apple Intelligence, dictado, OCR y teclado/ratón. */
+  helper: 'ready' | 'starting' | 'missing' | 'unsupported' | 'error'
+  detail: string
+  intelligence: { available: boolean; reason?: string; imageInput: boolean }
+  speech: { available: boolean; detail?: string }
+  ocr: boolean
+  /** Quién ejecuta los clics y el teclado de las rutinas. */
+  input: { backend: 'helper' | 'xdotool' | 'none'; trusted: boolean; detail?: string }
+}
+
+// ---- Rutinas (tareas repetitivas estilo QA) --------------------------------------------------
+
+export type RoutineStepKind = 'open' | 'click' | 'type' | 'key' | 'scroll' | 'wait' | 'waitFor' | 'check' | 'point' | 'say' | 'ask'
+
+export interface RoutineStep {
+  kind: RoutineStepKind
+  /** Elemento visible que hay que encontrar (click, point, type), o la URL/app que se abre (open). */
+  target?: string
+  /** Texto que se escribe (type) o se dice (say). Admite {{fecha}}, {{hora}} y {{aleatorio}}. */
+  text?: string
+  /** Combinación de teclas (key), p. ej. "cmd+s" o "enter". */
+  keys?: string
+  /** Lo que se comprueba en pantalla (check, waitFor) o la pregunta para el modelo (ask). */
+  condition?: string
+  /** check: true = debe verse; false = no debe verse. */
+  expect?: boolean
+  /** wait: segundos de espera. waitFor: tiempo máximo en segundos. */
+  seconds?: number
+  direction?: 'up' | 'down'
+  /** Nota corta de para qué sirve el paso. */
+  note?: string
+}
+
+export interface RoutineSchedule {
+  /** Repetir cada N minutos (0 = no). */
+  everyMinutes: number
+  /** Hora diaria "HH:MM" ("" = no). */
+  dailyAt: string
+}
+
+export type RoutineRunStatus = 'running' | 'passed' | 'failed' | 'error' | 'cancelled'
+
+export interface Routine {
+  id: string
+  name: string
+  description: string
+  steps: RoutineStep[]
+  createdAt: number
+  updatedAt: number
+  source: 'claude' | 'orchestrator' | 'manual'
+  schedule: RoutineSchedule | null
+  /** Seguir con los demás pasos aunque uno falle. */
+  continueOnFailure: boolean
+  lastRun?: { runId: string; status: RoutineRunStatus; at: number; passed: number; total: number }
+}
+
+export type StepStatus = 'pending' | 'running' | 'passed' | 'failed' | 'skipped' | 'error'
+
+export interface StepResult {
+  index: number
+  status: StepStatus
+  ms: number
+  detail: string
+  /** Probabilidad (check) o confianza (click/point) que dio Jev. */
+  score?: number
+  /** Quién resolvió el paso visual. */
+  via?: 'jev' | 'model' | 'ocr'
+}
+
+export interface RoutineRun {
+  id: string
+  routineId: string
+  routineName: string
+  trigger: 'manual' | 'voice' | 'schedule' | 'orchestrator'
+  status: RoutineRunStatus
+  startedAt: number
+  finishedAt?: number
+  steps: StepResult[]
+  summary?: string
+  /** Captura del momento en que falló (ruta local). */
+  failureShot?: string
 }
 
 export interface JevStatus {
@@ -159,6 +284,8 @@ export interface AgentTask {
   title: string
   prompt: string
   provider: ProviderId
+  /** `orchestrator`: Claude usa la pantalla con las herramientas rápidas de Buddy. */
+  kind?: 'agent' | 'orchestrator'
   status: AgentStatus
   startedAt: number
   finishedAt?: number
@@ -224,6 +351,23 @@ export interface BuddyApi {
   getSttStatus(): Promise<SttStatus>
   onSttStatus(cb: (s: SttStatus) => void): () => void
 
+  getAppleStatus(): Promise<AppleStatus>
+  onAppleStatus(cb: (s: AppleStatus) => void): () => void
+  /** Pide (o comprueba) el permiso de Accesibilidad que necesitan los clics de las rutinas. */
+  requestAccessibility(): Promise<AppleStatus>
+
+  listRoutines(): Promise<Routine[]>
+  onRoutines(cb: (r: Routine[]) => void): () => void
+  /** Claude convierte la descripción en pasos y la guarda. */
+  createRoutine(description: string): Promise<Routine>
+  updateRoutine(id: string, patch: Partial<Pick<Routine, 'name' | 'schedule' | 'continueOnFailure' | 'steps'>>): Promise<Routine>
+  deleteRoutine(id: string): Promise<void>
+  runRoutine(id: string): Promise<void>
+  stopRoutine(): Promise<void>
+  listRuns(): Promise<RoutineRun[]>
+  onRuns(cb: (r: RoutineRun[]) => void): () => void
+  openRunShot(runId: string): Promise<void>
+
   // Overlay
   onCursor(cb: (c: CursorUpdate) => void): () => void
   onBuddy(cb: (c: BuddyCommand) => void): () => void
@@ -238,6 +382,10 @@ export interface BuddyApi {
   sendVoiceStopped(): void
   sendSttStatus(status: SttStatus): void
   sendSpeechDone(): void
+  /** Dictado de Apple: un trozo de audio mono (Float32) mientras hablas. */
+  sendAudioChunk(samples: Float32Array, sampleRate: number): void
+  /** Dictado de Apple: terminó la grabación (`hadSpeech` = false si no se oyó voz). */
+  sendAudioEnd(hadSpeech: boolean): void
 }
 
 export type DeepPartial<T> = {

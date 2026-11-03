@@ -251,7 +251,21 @@ export function Home({ data }: { data: AppData }) {
           text={screenOk ? 'Permitida' : 'Necesaria para ver tu pantalla. Actívala y reinicia Buddy.'}
           action={screenOk ? undefined : { label: 'Abrir ajustes', onClick: () => void api.openPermissionSettings('screen') }}
         />
-        <Check label="Dictado local (Whisper)" tone={sttTone} text={sttText} />
+        {data.apple.helper === 'ready' && settings.stt.engine !== 'whisper' ? (
+          <Check label="Dictado de Apple" tone={data.apple.speech.available ? 'ok' : 'warn'} text={data.apple.speech.detail ?? 'En tu equipo'} />
+        ) : (
+          <Check label="Dictado local (Whisper)" tone={sttTone} text={sttText} />
+        )}
+        <Check
+          label="Apple Intelligence"
+          tone={data.apple.intelligence.available ? 'ok' : 'neutral'}
+          text={
+            data.apple.intelligence.available
+              ? 'Responde lo sencillo en tu equipo; Claude/ChatGPT para lo complejo.'
+              : data.apple.intelligence.reason ?? data.apple.detail
+          }
+          action={data.apple.intelligence.available ? undefined : { label: 'Ver', onClick: () => data.go('settings') }}
+        />
         <Check
           label="Atajos de teclado"
           tone={hotkeysOk ? 'ok' : 'bad'}

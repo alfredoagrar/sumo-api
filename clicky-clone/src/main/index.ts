@@ -4,6 +4,8 @@ import { join } from 'node:path'
 import { IPC } from '../shared/ipc'
 import type {
   AgentTask,
+  AppleStatus,
+  Routine,
   BuddyCommand,
   DeepPartial,
   HotkeyStatus,
@@ -15,6 +17,7 @@ import type {
   SttStatus
 } from '../shared/types'
 import { AgentManager } from './agents'
+import { AppleServices } from './apple'
 import { Assistant } from './assistant'
 import { screenPermission } from './capture'
 import { describeJevError, JevPointer } from './core/jev'
@@ -22,9 +25,13 @@ import { Secrets } from './secrets'
 import { loadLoginShellPath } from './cli'
 import { registerHotkeys } from './hotkeys'
 import { APP_ORIGIN, handleAppProtocol, registerAppScheme } from './protocol'
+import { pickInputBackend } from './input-backend'
+import { Orchestrator } from './orchestrator'
 import { openLogin, providers } from './providers'
+import { RoutineManager } from './routines'
 import { SettingsStore } from './settings'
 import { AppTray } from './tray'
+import { ScreenVision } from './vision'
 import { OverlayManager, PanelWindow, PromptWindow, VoiceWindow } from './windows'
 
 app.setName('Buddy')
@@ -88,9 +95,30 @@ async function main(): Promise<void> {
   const agents = new AgentManager(settings)
   const secrets = new Secrets()
   const jev = new JevPointer({ getApiKey: () => secrets.getJevKey() })
-  const assistant = new Assistant({ settings, overlays, prompt, voice, agents, jev })
+  const apple = new AppleServices()
+  const cliCwd = join(app.getPath('userData'), 'cli')
+  mkdirSync(cliCwd, { recursive: true })
+  const vision = new ScreenVision({ jev, settings, cliCwd })
+  const routines = new RoutineManager({ settings, apple, vision, cliCwd })
+  const assistant = new Assistant({ settings, overlays, prompt, voice, agents, jev, apple, routines })
+  routines.setHost(assistant.host)
+  const orchestrator = new Orchestrator({ settings, apple, vision, routines, agents, host: () => assistant.host })
+  assistant.setOrchestrator(orchestrator)
+
+  // Solo para las pruebas de punta a punta (skill run-buddy): permite simular el atajo de voz.
+  if (process.env.BUDDY_E2E === '1') Object.assign(globalThis, { __buddyE2E: { assistant, routines, apple } })
 
   overlays.start()
+  routines.startScheduler()
+  // El panel necesita saber también si las rutinas pueden hacer clics (y por qué no).
+  const appleStatus = (): AppleStatus => {
+    const { backend, reason } = pickInputBackend(apple)
+    return { ...apple.getStatus(), input: { backend: backend?.name ?? 'none', trusted: Boolean(backend), detail: backend ? undefined : reason } }
+  }
+  apple.on('status', () => panel.send(IPC.appleStatusChanged, appleStatus()))
+  void apple.refresh()
+  routines.on('routines', (list: Routine[]) => panel.send(IPC.routinesChanged, list))
+  routines.on('runs', (list) => panel.send(IPC.runsChanged, list))
 
   const talk = async (): Promise<void> => {
     if (process.platform === 'darwin' && systemPreferences.getMediaAccessStatus('microphone') !== 'granted') {
@@ -214,6 +242,35 @@ async function main(): Promise<void> {
 
   handle(IPC.sttStatusGet, () => assistant.getSttStatus())
 
+  handle(IPC.appleStatus, async () => {
+    await apple.refresh()
+    return appleStatus()
+  })
+  handle(IPC.appleAccessibility, async () => {
+    await apple.requestAccessibility()
+    return appleStatus()
+  })
+
+  handle(IPC.routinesList, () => routines.list())
+  handle(IPC.routinesCreate, async (description: string) => (await routines.create(String(description).slice(0, 4000), null)).routine)
+  handle(IPC.routinesUpdate, (id: string, patch: Parameters<RoutineManager['update']>[1]) => routines.update(String(id), patch ?? {}))
+  handle(IPC.routinesDelete, (id: string) => routines.delete(String(id)))
+  handle(IPC.routinesRun, (id: string) => {
+    if (routines.running) throw new Error(`Ya está en marcha la rutina «${routines.running.routineName}».`)
+    // El panel taparía la pantalla: lo ocultamos mientras la rutina trabaja y volvemos a mostrarlo.
+    panel.hide()
+    void routines
+      .run(String(id), 'manual')
+      .catch((err: unknown) => console.warn('[routines] La rutina no pudo ejecutarse:', err))
+      .finally(() => panel.show())
+  })
+  handle(IPC.routinesStop, () => routines.stop())
+  handle(IPC.runsList, () => routines.listRuns())
+  handle(IPC.runsOpenShot, async (runId: string) => {
+    const run = routines.listRuns().find((r) => r.id === runId)
+    if (run?.failureShot && existsSync(run.failureShot)) await shell.openPath(run.failureShot)
+  })
+
   const jevStatus = (): JevStatus => ({ configured: jev.configured, fromEnv: secrets.jevFromEnv() })
   handle(IPC.jevStatus, jevStatus)
   handle(IPC.jevSetKey, (key: string) => {
@@ -237,6 +294,10 @@ async function main(): Promise<void> {
   on(IPC.voiceStopped, () => assistant.onVoiceStopped())
   on(IPC.sttStatus, (status: SttStatus) => assistant.onSttStatus(status))
   on(IPC.speechDone, () => assistant.onSpeechDone())
+  on(IPC.audioChunk, (samples: unknown, rate: number) => {
+    if (samples instanceof Float32Array) assistant.onAudioChunk(samples, Number(rate) || 48_000)
+  })
+  on(IPC.audioEnd, (hadSpeech: boolean) => void assistant.onAudioEnd(Boolean(hadSpeech)))
 
   // ---- Ciclo de vida --------------------------------------------------------------------------
   app.on('second-instance', () => panel.show())
@@ -247,6 +308,9 @@ async function main(): Promise<void> {
   app.on('before-quit', () => {
     panel.quitting = true
     agents.cancelAll()
+    routines.stop()
+    routines.stopScheduler()
+    apple.stop()
     overlays.stop()
     voice.destroy()
   })

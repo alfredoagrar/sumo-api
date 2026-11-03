@@ -3,11 +3,11 @@ import { EventEmitter } from 'node:events'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { AgentEvent, AgentTask } from '../shared/types'
+import type { AgentEvent, AgentTask, ProviderId } from '../shared/types'
 import type { Shot } from './capture'
 import { agentTitle, slugify } from './core/prompts'
 import { providers } from './providers'
-import { AbortedError } from './providers/types'
+import { AbortedError, type AgentRequest } from './providers/types'
 import type { SettingsStore } from './settings'
 
 const MAX_TASKS = 50
@@ -54,7 +54,7 @@ export class AgentManager extends EventEmitter {
     return this.tasks.find((t) => t.id === id)
   }
 
-  start(prompt: string, shot: Shot | null): AgentTask {
+  start(prompt: string, shot: Shot | null, opts: { provider?: ProviderId; mcp?: AgentRequest['mcp'] } = {}): AgentTask {
     const s = this.settings.get()
     const id = randomUUID()
     const workdir = join(s.agents.workspaceDir, `${stamp()}_${slugify(prompt)}`)
@@ -74,7 +74,8 @@ export class AgentManager extends EventEmitter {
       id,
       title: agentTitle(prompt),
       prompt,
-      provider: s.provider,
+      provider: opts.provider ?? s.provider,
+      kind: opts.mcp ? 'orchestrator' : 'agent',
       status: 'running',
       startedAt: Date.now(),
       workdir,
@@ -88,7 +89,7 @@ export class AgentManager extends EventEmitter {
     const provider = providers[task.provider]
 
     provider
-      .agent({ id, prompt, workdir, image, language: s.language }, s, (note) => this.addEvent(id, note), controller.signal)
+      .agent({ id, prompt, workdir, image, language: s.language, mcp: opts.mcp }, s, (note) => this.addEvent(id, note), controller.signal)
       .then((result) => this.finish(id, 'done', result || 'Tarea terminada.'))
       .catch((err: unknown) => {
         if (err instanceof AbortedError || controller.signal.aborted) this.finish(id, 'cancelled', 'Cancelada.')
